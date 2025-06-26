@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(214, 84%, 56%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(153, 60%, 42%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(24, 9.8%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.5rem;
+  --neutral-50: hsl(0, 0%, 98%);
+  --neutral-100: hsl(0, 0%, 95%);
+  --neutral-200: hsl(0, 0%, 90%);
+  --neutral-300: hsl(0, 0%, 82%);
+  --neutral-400: hsl(0, 0%, 64%);
+  --neutral-500: hsl(0, 0%, 45%);
+  --neutral-600: hsl(0, 0%, 32%);
+  --neutral-700: hsl(0, 0%, 22%);
+  --neutral-800: hsl(0, 0%, 12%);
+  --neutral-900: hsl(0, 0%, 7%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(214, 84%, 56%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply antialiased bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-neutral-50 { color: hsl(var(--neutral-50)); }
+  .text-neutral-100 { color: hsl(var(--neutral-100)); }
+  .text-neutral-200 { color: hsl(var(--neutral-200)); }
+  .text-neutral-300 { color: hsl(var(--neutral-300)); }
+  .text-neutral-400 { color: hsl(var(--neutral-400)); }
+  .text-neutral-500 { color: hsl(var(--neutral-500)); }
+  .text-neutral-600 { color: hsl(var(--neutral-600)); }
+  .text-neutral-700 { color: hsl(var(--neutral-700)); }
+  .text-neutral-800 { color: hsl(var(--neutral-800)); }
+  .text-neutral-900 { color: hsl(var(--neutral-900)); }
+  
+  .bg-neutral-50 { background-color: hsl(var(--neutral-50)); }
+  .bg-neutral-100 { background-color: hsl(var(--neutral-100)); }
+  .bg-neutral-200 { background-color: hsl(var(--neutral-200)); }
+  .bg-neutral-300 { background-color: hsl(var(--neutral-300)); }
+  .bg-neutral-400 { background-color: hsl(var(--neutral-400)); }
+  .bg-neutral-500 { background-color: hsl(var(--neutral-500)); }
+  .bg-neutral-600 { background-color: hsl(var(--neutral-600)); }
+  .bg-neutral-700 { background-color: hsl(var(--neutral-700)); }
+  .bg-neutral-800 { background-color: hsl(var(--neutral-800)); }
+  .bg-neutral-900 { background-color: hsl(var(--neutral-900)); }
+  
+  .border-neutral-200 { border-color: hsl(var(--neutral-200)); }
+  .border-neutral-300 { border-color: hsl(var(--neutral-300)); }
+}
