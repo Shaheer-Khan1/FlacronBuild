@@ -3,6 +3,7 @@ import Header from "@/components/header";
 import EstimationForm from "@/components/estimation-form";
 import CostPreview from "@/components/cost-preview";
 import RecentEstimates from "@/components/recent-estimates";
+import LiveScrapingTest from "@/components/live-scraping-test";
 
 export default function Dashboard() {
   const [currentProject, setCurrentProject] = useState<any>(null);
@@ -26,8 +27,9 @@ export default function Dashboard() {
             />
           </div>
         </div>
-        <div className="mt-12">
+        <div className="mt-12 space-y-8">
           <RecentEstimates />
+          <LiveScrapingTest />
         </div>
       </div>
     </div>

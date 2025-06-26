@@ -4,6 +4,7 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { insertProjectSchema, insertEstimateSchema } from "@shared/schema";
 import { realCostCalculator, type ProjectRequirements } from "./cost-calculator";
+import { scrapingVerification } from "./scraping-verification";
 
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -177,6 +178,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Cost breakdown error:", error);
       res.status(500).json({ message: "Failed to get cost breakdown" });
+    }
+  });
+
+  // Real-time data source verification endpoint
+  app.get("/api/verify-data-sources/:location", async (req, res) => {
+    try {
+      const location = decodeURIComponent(req.params.location);
+      console.log(`[VERIFICATION API] Testing data sources for ${location}`);
+      
+      const verification = await scrapingVerification.verifyRealScraping(location);
+      
+      res.json({
+        location,
+        timestamp: new Date().toISOString(),
+        verification: {
+          isUsingRealData: verification.isUsingRealData,
+          sourcesAttempted: verification.attempts.length,
+          successfulSources: verification.attempts.filter(a => a.success && a.dataFound).length,
+          evidence: verification.evidence,
+          fallbackReason: verification.fallbackReason
+        },
+        scrapingAttempts: verification.attempts.map(attempt => ({
+          url: attempt.url,
+          timestamp: attempt.timestamp,
+          success: attempt.success,
+          dataFound: attempt.dataFound,
+          status: attempt.responseStatus,
+          error: attempt.error
+        })),
+        summary: scrapingVerification.getVerificationSummary()
+      });
+    } catch (error) {
+      console.error("Data verification error:", error);
+      res.status(500).json({ 
+        message: "Failed to verify data sources",
+        error: error.message 
+      });
     }
   });
 
