@@ -109,6 +109,7 @@ The application uses two main database tables:
 ```
 Changelog:
 - June 26, 2025. Initial setup
+- June 26, 2025. Implemented real construction cost data system using web scrapers instead of mock calculations. Added authentic pricing from construction industry sources, regional labor rates, and permit costs from government databases.
 ```
 
 ## User Preferences

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { z } from "zod";
 import { storage } from "./storage";
 import { insertProjectSchema, insertEstimateSchema } from "@shared/schema";
+import { realCostCalculator, type ProjectRequirements } from "./cost-calculator";
 
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -76,7 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate cost estimate
+  // Generate cost estimate using real data
   app.post("/api/projects/:id/estimate", async (req, res) => {
     try {
       const projectId = parseInt(req.params.id);
@@ -85,14 +86,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      const estimate = calculateCostEstimate(project);
+      // Convert project to requirements format for real cost calculator
+      const projectRequirements: ProjectRequirements = {
+        type: project.type as any,
+        area: project.area,
+        location: project.location,
+        materialTier: project.materialTier as any,
+        timeline: project.timeline as any
+      };
+
+      // Use real cost calculator
+      const realEstimate = await realCostCalculator.calculateRealCost(projectRequirements);
+      
       const savedEstimate = await storage.createEstimate({
         projectId,
-        ...estimate
+        totalCost: realEstimate.totalCost.toString(),
+        materialsCost: realEstimate.materialsCost.toString(),
+        laborCost: realEstimate.laborCost.toString(),
+        permitsCost: realEstimate.permitsCost.toString(),
+        contingencyCost: realEstimate.contingencyCost.toString(),
+        regionMultiplier: realEstimate.regionMultiplier.toString()
       });
 
-      res.json(savedEstimate);
+      // Include detailed breakdown in response
+      res.json({
+        ...savedEstimate,
+        breakdown: realEstimate.breakdown,
+        dataSource: realEstimate.dataSource
+      });
     } catch (error) {
+      console.error("Cost estimation error:", error);
       res.status(500).json({ message: "Failed to generate estimate" });
     }
   });
@@ -122,67 +145,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get detailed cost breakdown with real data sources
+  app.get("/api/projects/:id/cost-breakdown", async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      const projectRequirements: ProjectRequirements = {
+        type: project.type as any,
+        area: project.area,
+        location: project.location,
+        materialTier: project.materialTier as any,
+        timeline: project.timeline as any
+      };
+
+      const realEstimate = await realCostCalculator.calculateRealCost(projectRequirements);
+      
+      res.json({
+        breakdown: realEstimate.breakdown,
+        dataSource: realEstimate.dataSource,
+        lastUpdated: new Date().toISOString(),
+        regionalFactors: {
+          locationAnalyzed: project.location,
+          marketConditions: "Current regional pricing",
+          costDatabase: realEstimate.dataSource
+        }
+      });
+    } catch (error) {
+      console.error("Cost breakdown error:", error);
+      res.status(500).json({ message: "Failed to get cost breakdown" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
-}
-
-// Cost calculation service
-function calculateCostEstimate(project: any) {
-  // Base costs per sq ft by project type
-  const baseCosts = {
-    residential: { materials: 85, labor: 45, permits: 3 },
-    commercial: { materials: 120, labor: 65, permits: 8 },
-    renovation: { materials: 65, labor: 55, permits: 2 },
-    infrastructure: { materials: 200, labor: 85, permits: 15 }
-  };
-
-  // Material tier multipliers
-  const materialMultipliers = {
-    economy: 0.7,
-    standard: 1.0,
-    premium: 1.35
-  };
-
-  // Regional multipliers (simplified)
-  const regionMultipliers: { [key: string]: number } = {
-    "san francisco": 1.65,
-    "oakland": 1.45,
-    "palo alto": 1.75,
-    "san jose": 1.55,
-    "los angeles": 1.35,
-    "chicago": 1.15,
-    "new york": 1.85,
-    "default": 1.0
-  };
-
-  const projectType = project.type as keyof typeof baseCosts;
-  const materialTier = project.materialTier as keyof typeof materialMultipliers;
-  const area = project.area;
-  
-  // Get regional multiplier
-  const locationKey = project.location.toLowerCase();
-  const regionMultiplier = Object.keys(regionMultipliers).find(key => 
-    locationKey.includes(key)
-  ) ? regionMultipliers[Object.keys(regionMultipliers).find(key => 
-    locationKey.includes(key)
-  )!] : regionMultipliers.default;
-
-  // Calculate base costs
-  const baseCost = baseCosts[projectType];
-  const materialMultiplier = materialMultipliers[materialTier];
-
-  const materialsCost = Math.round(area * baseCost.materials * materialMultiplier * regionMultiplier);
-  const laborCost = Math.round(area * baseCost.labor * regionMultiplier);
-  const permitsCost = Math.round(area * baseCost.permits * regionMultiplier);
-  const contingencyCost = Math.round((materialsCost + laborCost + permitsCost) * 0.07);
-  const totalCost = materialsCost + laborCost + permitsCost + contingencyCost;
-
-  return {
-    totalCost: totalCost.toString(),
-    materialsCost: materialsCost.toString(),
-    laborCost: laborCost.toString(),
-    permitsCost: permitsCost.toString(),
-    contingencyCost: contingencyCost.toString(),
-    regionMultiplier: regionMultiplier.toString()
-  };
 }
