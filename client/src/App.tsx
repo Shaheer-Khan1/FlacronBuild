@@ -5,13 +5,44 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/dashboard";
 import NotFound from "@/pages/not-found";
+import ComparePage from "@/pages/compare";
+import UserDashboardPage from "@/pages/userdashboard";
+import EstimateDetailPage from "@/pages/estimate-detail";
+import CompareSlogPage from "@/pages/compare-slog";
+import EstimateEditPage from "@/pages/estimate-edit";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/compare" component={ComparePage} />
+      <Route path="/compare/slog" component={CompareSlogPage} />
+      <Route path="/my-estimates" component={UserDashboardPage} />
+      <Route path="/estimate/:id" component={EstimateDetailPage} />
+      <Route path="/estimate/:id/edit" component={EstimateEditPage} />
       <Route component={NotFound} />
     </Switch>
+  );
+}
+
+function Footer() {
+  return (
+    <footer style={{
+      width: '100%',
+      background: '#f3f4f6',
+      color: '#374151',
+      textAlign: 'center',
+      padding: '1rem 0',
+      borderTop: '1px solid #e5e7eb',
+      // position: 'fixed',
+      // left: 0,
+      // bottom: 0,
+      // zIndex: 100,
+    }}>
+      <div>
+        &copy; {new Date().getFullYear()} FlacronBuild &mdash; AI-powered construction cost estimation
+      </div>
+    </footer>
   );
 }
 
@@ -19,8 +50,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <div className="pb-20">
+          <Toaster />
+          <Router />
+        </div>
+        <Footer />
       </TooltipProvider>
     </QueryClientProvider>
   );

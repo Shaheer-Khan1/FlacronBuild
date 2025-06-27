@@ -13,6 +13,9 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ArrowLeft, ArrowRight, Save, Upload, Home, Building, Wrench, TrafficCone, MapPin, Info } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -52,11 +55,23 @@ interface EstimationFormProps {
   onEstimateUpdate: (estimate: any) => void;
 }
 
-export default function EstimationForm({ onProjectUpdate, onEstimateUpdate }: EstimationFormProps) {
+// Helper to save estimate to Firestore
+async function addEstimateToFirestore(estimate: any, project: any) {
+  const user = auth.currentUser;
+  await addDoc(collection(db, "estimates"), {
+    userId: user ? user.uid : null,
+    createdAt: serverTimestamp(),
+    estimate,
+    project,
+  });
+}
+
+export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasEstimate }: EstimationFormProps & { hasEstimate?: boolean }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [savedProjectId, setSavedProjectId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isEstimating, setIsEstimating] = useState(false);
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectSchema),
@@ -108,8 +123,15 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate }: Es
       const response = await apiRequest("POST", `/api/projects/${projectId}/estimate`);
       return response.json();
     },
-    onSuccess: (estimate) => {
+    onSuccess: async (estimate) => {
+      console.log('Gemini estimate response:', estimate);
       onEstimateUpdate(estimate);
+      // Save to Firestore
+      try {
+        await addEstimateToFirestore(estimate, form.getValues());
+      } catch (e) {
+        console.error('Failed to save estimate to Firestore', e);
+      }
     },
   });
 
@@ -133,7 +155,14 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate }: Es
     }
   }, [savedProjectId, form.watch("type"), form.watch("location"), form.watch("area"), form.watch("materialTier")]);
 
+  useEffect(() => {
+    if (!generateEstimateMutation.isPending) {
+      setIsEstimating(false);
+    }
+  }, [generateEstimateMutation.isPending]);
+
   const onSubmit = (data: ProjectFormData) => {
+    setIsEstimating(true);
     if (savedProjectId) {
       updateProjectMutation.mutate(data);
     } else {
@@ -141,8 +170,16 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate }: Es
     }
   };
 
-  const handleNext = () => {
-    if (currentStep < steps.length) {
+  const handleNext = async () => {
+    let fieldsToValidate: ("name" | "type" | "location" | "area" | "unit" | "materialTier" | "timeline")[] = [];
+    if (currentStep === 1) fieldsToValidate = ["name", "type"];
+    if (currentStep === 2) fieldsToValidate = ["location", "area", "unit"];
+    if (currentStep === 3) fieldsToValidate = ["materialTier"];
+    if (currentStep === 4) fieldsToValidate = ["timeline"];
+    // Step 5 is review
+
+    const isValid = await form.trigger(fieldsToValidate);
+    if (isValid && currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -160,6 +197,14 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate }: Es
     } else {
       createProjectMutation.mutate(data);
     }
+  };
+
+  const handleNewProject = () => {
+    form.reset();
+    setCurrentStep(1);
+    setSavedProjectId(null);
+    onProjectUpdate(null);
+    onEstimateUpdate(null);
   };
 
   const progress = (currentStep / steps.length) * 100;
@@ -279,7 +324,11 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate }: Es
                             type="number"
                             placeholder="2500"
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            value={field.value === 0 ? "" : field.value}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val === "" ? 0 : parseInt(val));
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -424,31 +473,29 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate }: Es
                 type="button"
                 variant="ghost"
                 onClick={handlePrev}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || hasEstimate}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Previous
               </Button>
 
               <div className="flex space-x-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSaveDraft}
-                  disabled={createProjectMutation.isPending || updateProjectMutation.isPending}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Draft
-                </Button>
-
-                {currentStep < steps.length ? (
-                  <Button type="button" onClick={handleNext}>
-                    Continue
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+                {!hasEstimate ? (
+                  <>
+                    {currentStep < steps.length ? (
+                      <Button type="button" onClick={handleNext}>
+                        Continue
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button type="submit" disabled={createProjectMutation.isPending || isEstimating} style={isEstimating ? { backgroundColor: '#ccc', color: '#fff', borderColor: '#ccc' } : {}}>
+                        {isEstimating ? 'Calculating with AI...' : 'Get Estimate'}
+                      </Button>
+                    )}
+                  </>
                 ) : (
-                  <Button type="submit" disabled={createProjectMutation.isPending}>
-                    Complete Project
+                  <Button type="button" variant="default" onClick={handleNewProject}>
+                    New Project Estimate
                   </Button>
                 )}
               </div>

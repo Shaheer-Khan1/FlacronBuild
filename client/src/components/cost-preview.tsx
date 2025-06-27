@@ -19,8 +19,8 @@ export default function CostPreview({ project, estimate }: CostPreviewProps) {
   if (!project || !estimate) {
     return (
       <div className="space-y-6">
-        <Card className="p-6">
-          <div className="text-center text-neutral-500">
+        <Card className="p-6 min-h-[350px] flex items-center justify-center">
+          <div className="text-center text-neutral-500 w-full">
             <p>Complete the form to see cost estimate</p>
           </div>
         </Card>
@@ -122,91 +122,13 @@ export default function CostPreview({ project, estimate }: CostPreviewProps) {
         </div>
       </Card>
 
-      {/* Regional Insights */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 mb-4">Regional Insights</h3>
-        
-        <div className="space-y-4">
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <div>
-              <div className="text-sm font-medium text-neutral-800">Labor Cost</div>
-              <div className="text-xs text-neutral-600">
-                {parseFloat(estimate.regionMultiplier) > 1 
-                  ? `${Math.round((parseFloat(estimate.regionMultiplier) - 1) * 100)}% above national average`
-                  : `${Math.round((1 - parseFloat(estimate.regionMultiplier)) * 100)}% below national average`}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-secondary rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <div>
-              <div className="text-sm font-medium text-neutral-800">Material Availability</div>
-              <div className="text-xs text-neutral-600">Good supply, standard lead times</div>
-            </div>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <div>
-              <div className="text-sm font-medium text-neutral-800">Permit Process</div>
-              <div className="text-xs text-neutral-600">3-6 months typical timeline</div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Material Options */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-neutral-800 mb-4">Material Tier Options</h3>
-        
-        <div className="space-y-3">
-          {materialTierOptions.map((tier) => {
-            const baseCost = parseFloat(estimate.totalCost) / (project.materialTier === "economy" ? 0.7 : project.materialTier === "premium" ? 1.35 : 1.0);
-            const tierCost = baseCost * tier.multiplier;
-            const costDiff = tierCost - parseFloat(estimate.totalCost);
-            const percentDiff = Math.round((costDiff / parseFloat(estimate.totalCost)) * 100);
-            
-            return (
-              <div
-                key={tier.name}
-                className={`border rounded-lg p-3 hover:border-primary cursor-pointer transition-colors ${
-                  tier.current ? "border-primary bg-primary/5" : "border-neutral-200"
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium text-neutral-800">{tier.name}</div>
-                    <div className="text-xs text-neutral-500">{tier.description}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-neutral-800">{formatCurrency(tierCost)}</div>
-                    <div className="text-xs">
-                      {tier.current ? (
-                        <span className="text-neutral-500">Current selection</span>
-                      ) : percentDiff > 0 ? (
-                        <span className="text-secondary">+{percentDiff}% cost</span>
-                      ) : (
-                        <span className="text-accent">{percentDiff}% cost</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-
       {/* Action Buttons */}
       <div className="space-y-3">
         <Button className="w-full" onClick={handleGeneratePDF}>
           <FileText className="mr-2 h-4 w-4" />
           Generate Detailed Report
         </Button>
-        <Button variant="outline" className="w-full">
-          <Save className="mr-2 h-4 w-4" />
-          Save Estimate
-        </Button>
+        
       </div>
     </div>
   );
