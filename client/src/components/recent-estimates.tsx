@@ -5,6 +5,7 @@ import { Home, Building, Wrench, TrafficCone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { db, auth } from "@/lib/firebase";
 import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { useLocation } from "wouter";
 
 const projectTypeIcons = {
   residential: Home,
@@ -18,6 +19,7 @@ export default function RecentEstimates() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [, navigate] = useLocation();
 
   // Fetch estimates for the current user
   const fetchEstimates = async (uid: string) => {
@@ -118,9 +120,13 @@ export default function RecentEstimates() {
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold text-neutral-800">Recent Estimates</h3>
           {estimates.length > 2 && (
-            <Button variant="ghost" className="text-primary hover:text-blue-700 text-sm font-medium">
-              View All
-            </Button>
+          <Button 
+            variant="ghost" 
+            className="text-primary hover:text-blue-700 text-sm font-medium"
+            onClick={() => navigate("/my-estimates")}
+          >
+            View All
+          </Button>
           )}
         </div>
       </div>
@@ -177,7 +183,11 @@ export default function RecentEstimates() {
       </div>
       {estimates.length === 2 && (
         <div className="px-6 py-3 text-center">
-          <Button variant="ghost" className="text-primary hover:text-blue-700 text-sm font-medium">
+          <Button 
+            variant="ghost" 
+            className="text-primary hover:text-blue-700 text-sm font-medium"
+            onClick={() => navigate("/my-estimates")}
+          >
             View All
           </Button>
         </div>

@@ -16,10 +16,24 @@ function renderField(label: string, value: any, idx: number = 0, highlightTotal 
   if (typeof value === "object" && value.toDate) {
     value = value.toDate().toLocaleString();
   }
+  
+  // Skip problematic fields that contain complex objects
+  const skipFields = ['breakdown', 'imageanalysis', 'image_analysis', 'datasource', 'data_source'];
+  if (skipFields.includes(label.toLowerCase())) {
+    return null;
+  }
+  
   if (typeof value === "object" && !Array.isArray(value)) {
-    if (label.toLowerCase() === 'breakdown') {
+    // Check if the object contains complex nested objects that can't be rendered
+    const hasComplexObjects = Object.values(value).some(v => 
+      typeof v === "object" && v !== null && !Array.isArray(v) && typeof (v as any).toDate !== "function"
+    );
+    
+    if (hasComplexObjects) {
+      // Skip rendering objects with complex nested structures
       return null;
     }
+    
     return (
       <div className="mb-4">
         <div className="font-semibold text-lg mb-2 border-l-4 border-blue-500 pl-2">{capitalizeWords(label)}</div>
@@ -29,6 +43,20 @@ function renderField(label: string, value: any, idx: number = 0, highlightTotal 
       </div>
     );
   }
+  
+  // Handle arrays by converting to string
+  if (Array.isArray(value)) {
+    if (value.length === 0) return null;
+    // Convert array to readable string
+    const displayValue = value.join(", ");
+    return (
+      <div className={`flex justify-between items-center py-2 px-3 ${idx % 2 === 0 ? 'bg-white' : 'bg-neutral-50'} rounded`}> 
+        <span className="text-neutral-500 font-medium">{capitalizeWords(label.replace(/([A-Z])/g, ' $1'))}</span>
+        <span className="font-semibold text-neutral-800">{displayValue}</span>
+      </div>
+    );
+  }
+  
   let displayValue = value;
   if (typeof value === "number" && /cost/i.test(label)) {
     displayValue = `$${value.toLocaleString()}`;
@@ -39,6 +67,7 @@ function renderField(label: string, value: any, idx: number = 0, highlightTotal 
   if (typeof displayValue === "string" && !displayValue.startsWith("$") && displayValue.length > 0) {
     displayValue = displayValue.charAt(0).toUpperCase() + displayValue.slice(1);
   }
+  
   // Only highlight total cost
   const isTotalCost = /total ?cost/i.test(label);
   return (

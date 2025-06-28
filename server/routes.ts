@@ -96,8 +96,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeline: project.timeline as any
       };
 
-      // Use real cost calculator
-      const realEstimate = await realCostCalculator.calculateRealCost(projectRequirements);
+      // Log the entire request body for debugging
+      console.log('Full request body:', req.body);
+      // Extract images from req.body.files (if present)
+      const images = Array.isArray(req.body.files) ? req.body.files : [];
+      console.log('Received files:', images);
+
+      // Use real cost calculator with images
+      const realEstimate = await realCostCalculator.calculateRealCost(projectRequirements, images);
       
       const savedEstimate = await storage.createEstimate({
         projectId,
@@ -110,10 +116,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Include detailed breakdown in response
+      console.log('Gemini estimate response:', {
+        ...savedEstimate,
+        breakdown: realEstimate.breakdown,
+        dataSource: realEstimate.dataSource,
+        imageAnalysis: realEstimate.imageAnalysis
+      });
       res.json({
         ...savedEstimate,
         breakdown: realEstimate.breakdown,
-        dataSource: realEstimate.dataSource
+        dataSource: realEstimate.dataSource,
+        imageAnalysis: realEstimate.imageAnalysis
       });
     } catch (error) {
       console.error("Cost estimation error:", error);

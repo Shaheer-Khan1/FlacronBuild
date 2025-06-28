@@ -122,13 +122,33 @@ export default function CostPreview({ project, estimate }: CostPreviewProps) {
         </div>
       </Card>
 
-      {/* Action Buttons */}
+      {/* Download Status Note */}
       <div className="space-y-3">
-        <Button className="w-full" onClick={handleGeneratePDF}>
-          <FileText className="mr-2 h-4 w-4" />
-          Generate Detailed Report
-        </Button>
-        
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <FileText className="h-5 w-5 text-green-600 mt-0.5" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">
+                Report Downloaded and Saved
+              </h3>
+              <div className="mt-2 text-sm text-green-700">
+                <p>
+                  Your cost estimate report has been automatically downloaded. 
+                  You can access it again from{' '}
+                  <a 
+                    href="/my-estimates" 
+                    className="font-medium underline hover:text-green-900"
+                  >
+                    My Estimates
+                  </a>
+                  {' '}page.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

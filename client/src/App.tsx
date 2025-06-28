@@ -10,6 +10,8 @@ import UserDashboardPage from "@/pages/userdashboard";
 import EstimateDetailPage from "@/pages/estimate-detail";
 import CompareSlogPage from "@/pages/compare-slog";
 import EstimateEditPage from "@/pages/estimate-edit";
+import UserSettingsPage from "@/pages/user-settings";
+import AdminPage from "@/pages/admin";
 
 function Router() {
   return (
@@ -18,6 +20,8 @@ function Router() {
       <Route path="/compare" component={ComparePage} />
       <Route path="/compare/slog" component={CompareSlogPage} />
       <Route path="/my-estimates" component={UserDashboardPage} />
+      <Route path="/user-settings" component={UserSettingsPage} />
+      <Route path="/admin" component={AdminPage} />
       <Route path="/estimate/:id" component={EstimateDetailPage} />
       <Route path="/estimate/:id/edit" component={EstimateEditPage} />
       <Route component={NotFound} />

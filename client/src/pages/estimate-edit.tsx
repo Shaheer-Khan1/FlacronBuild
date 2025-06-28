@@ -132,7 +132,7 @@ export default function EstimateEditPage() {
               <div className="font-semibold text-lg mb-2 border-l-4 border-blue-500 pl-2">Estimate</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 bg-neutral-50 rounded-lg">
                 {Object.entries(est)
-                  .filter(([k]) => !["createdAt", "dataSource", "projectId", "id", "regionMultiplier", "breakdown"].includes(k))
+                  .filter(([k]) => !["createdAt", "dataSource", "projectId", "id", "regionMultiplier", "breakdown", "imageAnalysis"].includes(k))
                   .map(([k, v], i) => (
                     <div key={k} className="flex flex-col py-2 px-3">
                       <label className="text-neutral-500 font-medium mb-1">{capitalizeWords(k.replace(/([A-Z])/g, ' $1'))}</label>
