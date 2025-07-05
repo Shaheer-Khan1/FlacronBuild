@@ -49,12 +49,35 @@ export default function UserSettingsPage() {
 
   const fetchEstimateCount = async (userId: string) => {
     try {
-      const q = query(
-        collection(db, "estimates"),
-        where("userId", "==", userId)
-      );
-      const snapshot = await getDocs(q);
-      setEstimateCount(snapshot.size);
+      let totalCount = 0;
+      
+      // Count legacy estimates (by userId)
+      try {
+        const estimatesQuery = query(
+          collection(db, "estimates"),
+          where("userId", "==", userId)
+        );
+        const estimatesSnapshot = await getDocs(estimatesQuery);
+        totalCount += estimatesSnapshot.size;
+      } catch (error) {
+        console.log("No legacy estimates found:", error);
+      }
+      
+      // Count current reports (by userEmail)
+      if (user?.email) {
+        try {
+          const reportsQuery = query(
+            collection(db, "reports"),
+            where("userEmail", "==", user.email)
+          );
+          const reportsSnapshot = await getDocs(reportsQuery);
+          totalCount += reportsSnapshot.size;
+        } catch (error) {
+          console.log("No reports found:", error);
+        }
+      }
+      
+      setEstimateCount(totalCount);
     } catch (error) {
       console.error("Error fetching estimate count:", error);
       setEstimateCount(0);
@@ -79,16 +102,38 @@ export default function UserSettingsPage() {
         throw new Error("Unable to re-authenticate. Please try logging out and back in.");
       }
       
-      // Delete all user's estimates first
-      const q = query(
-        collection(db, "estimates"),
-        where("userId", "==", user.uid)
-      );
-      const snapshot = await getDocs(q);
+      // Delete all user's data first
+      const deletePromises: Promise<void>[] = [];
       
-      const deletePromises = snapshot.docs.map(docSnapshot => 
-        deleteDoc(doc(db, "estimates", docSnapshot.id))
-      );
+      // Delete legacy estimates
+      try {
+        const estimatesQuery = query(
+          collection(db, "estimates"),
+          where("userId", "==", user.uid)
+        );
+        const estimatesSnapshot = await getDocs(estimatesQuery);
+        estimatesSnapshot.docs.forEach(docSnapshot => {
+          deletePromises.push(deleteDoc(doc(db, "estimates", docSnapshot.id)));
+        });
+      } catch (error) {
+        console.log("No legacy estimates to delete:", error);
+      }
+      
+      // Delete current reports
+      if (user.email) {
+        try {
+          const reportsQuery = query(
+            collection(db, "reports"),
+            where("userEmail", "==", user.email)
+          );
+          const reportsSnapshot = await getDocs(reportsQuery);
+          reportsSnapshot.docs.forEach(docSnapshot => {
+            deletePromises.push(deleteDoc(doc(db, "reports", docSnapshot.id)));
+          });
+        } catch (error) {
+          console.log("No reports to delete:", error);
+        }
+      }
       
       await Promise.all(deletePromises);
       

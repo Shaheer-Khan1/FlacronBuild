@@ -12,6 +12,7 @@ import CompareSlogPage from "@/pages/compare-slog";
 import EstimateEditPage from "@/pages/estimate-edit";
 import UserSettingsPage from "@/pages/user-settings";
 import AdminPage from "@/pages/admin";
+import ReportDetailPage from "@/pages/report/[id]";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/admin" component={AdminPage} />
       <Route path="/estimate/:id" component={EstimateDetailPage} />
       <Route path="/estimate/:id/edit" component={EstimateEditPage} />
+      <Route path="/report/:id" component={ReportDetailPage} />
       <Route component={NotFound} />
     </Switch>
   );

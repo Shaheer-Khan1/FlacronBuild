@@ -26,6 +26,9 @@ export const estimates = pgTable("estimates", {
   permitsCost: decimal("permits_cost", { precision: 12, scale: 2 }).notNull(),
   contingencyCost: decimal("contingency_cost", { precision: 12, scale: 2 }).notNull(),
   regionMultiplier: decimal("region_multiplier", { precision: 3, scale: 2 }).notNull().default("1.0"),
+  report: json("report"), // Store full Gemini JSON response
+  formInputData: json("form_input_data"), // Store complete form input data as JSON
+  geminiResponse: json("gemini_response"), // Store raw Gemini API response as JSON
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

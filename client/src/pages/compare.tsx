@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import LoginDialog from "@/components/login-dialog";
 import { Home, Building, Wrench, TrafficCone, MapPin } from "lucide-react";
+import { getUserReports } from "@/lib/pdf-storage";
 
 export default function ComparePage() {
-  const [estimates, setEstimates] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -17,15 +18,18 @@ export default function ComparePage() {
   const [, navigate] = useLocation();
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginMessage, setLoginMessage] = useState("");
+  const [roleFilter, setRoleFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
         setUserId(user.uid);
-        fetchEstimates(user.uid);
+        fetchReports();
       } else {
         setUserId(null);
-        setEstimates([]);
+        setReports([]);
         setLoginMessage("You need to login first");
         setLoginOpen(true);
       }
@@ -33,20 +37,18 @@ export default function ComparePage() {
     return () => unsubscribe();
   }, []);
 
-  const fetchEstimates = async (uid: string) => {
+  const fetchReports = async () => {
     setLoading(true);
     setError(null);
     try {
-      const q = query(
-        collection(db, "estimates"),
-        where("userId", "==", uid),
-        orderBy("createdAt", "desc")
-      );
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setEstimates(data);
+      console.log('=== COMPARE PAGE: Fetching Reports ===');
+      const userReports = await getUserReports();
+      console.log('=== COMPARE PAGE: Reports Fetched ===');
+      console.log('Total reports:', userReports.length);
+      setReports(userReports);
     } catch (e: any) {
-      setError("Failed to load your estimates");
+      console.error('Error fetching reports:', e);
+      setError("Failed to load your reports");
     } finally {
       setLoading(false);
     }
@@ -66,6 +68,19 @@ export default function ComparePage() {
     }
   };
 
+  // Filtered reports
+  const filteredReports = reports.filter((report: any) => {
+    const project = report.projectData || {};
+    let matches = true;
+    if (roleFilter && project.userRole !== roleFilter) matches = false;
+    if (dateFilter && report.timestamp) {
+      const reportDate = new Date(report.timestamp).toISOString().split('T')[0];
+      if (reportDate !== dateFilter) matches = false;
+    }
+    if (nameFilter && project.name && !project.name.toLowerCase().includes(nameFilter.toLowerCase())) matches = false;
+    return matches;
+  });
+
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Header />
@@ -73,6 +88,41 @@ export default function ComparePage() {
       <main className="flex-1 flex flex-col items-center py-8 px-2">
         <h1 className="text-2xl font-bold mb-4">Compare Estimates</h1>
         <p className="text-neutral-600 mb-8 text-center max-w-xl">Select two estimates to compare.</p>
+        {/* Filter Bar */}
+        <div className="w-full max-w-5xl mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="flex gap-2 items-center w-full md:w-auto">
+            <label className="text-sm font-medium text-orange-600">Role:</label>
+            <select
+              className="border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-colors"
+              value={roleFilter}
+              onChange={e => setRoleFilter(e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="homeowner">Homeowner</option>
+              <option value="contractor">Contractor</option>
+              <option value="insurer">Insurer</option>
+            </select>
+          </div>
+          <div className="flex gap-2 items-center w-full md:w-auto">
+            <label className="text-sm font-medium text-orange-600">Date:</label>
+            <input
+              type="date"
+              className="border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-colors"
+              value={dateFilter}
+              onChange={e => setDateFilter(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2 items-center w-full md:w-auto">
+            <label className="text-sm font-medium text-orange-600">Project Name:</label>
+            <input
+              type="text"
+              className="border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-colors"
+              placeholder="Search by name"
+              value={nameFilter}
+              onChange={e => setNameFilter(e.target.value)}
+            />
+          </div>
+        </div>
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 w-full max-w-5xl mb-8">
             {[...Array(3)].map((_, i) => (
@@ -92,12 +142,12 @@ export default function ComparePage() {
           </div>
         ) : error ? (
           <div className="text-red-500">{error}</div>
-        ) : estimates.length === 0 ? (
-          <div className="text-neutral-500">No estimates found. Make an estimate to see it here.</div>
+        ) : filteredReports.length === 0 ? (
+          <div className="text-neutral-500">No reports found. Create an estimate to see it here.</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 w-full max-w-5xl mb-8">
-            {estimates.map((item: any) => {
-              const project = item.project || {};
+            {filteredReports.map((report: any) => {
+              const project = report.projectData || {};
               const typeIcons = {
                 residential: Home,
                 commercial: Building,
@@ -110,29 +160,40 @@ export default function ComparePage() {
                 renovation: "text-yellow-600",
                 infrastructure: "text-purple-600",
               };
-              const typeKey = (project.type as keyof typeof typeIcons) || 'residential';
+              const typeKey = (project.projectType as keyof typeof typeIcons) || 'residential';
               const Icon = typeIcons[typeKey];
               const iconColor = iconColors[typeKey];
               return (
-                <Card key={item.id} className={`p-0 flex flex-col justify-between rounded-2xl shadow-md border border-neutral-200 bg-white hover:shadow-xl hover:-translate-y-1 transition-all min-h-[220px] cursor-pointer ${selected.includes(item.id) ? 'ring-2 ring-green-500' : ''}`} onClick={() => handleSelect(item.id)}>
+                <Card key={report.id} className={`p-0 flex flex-col justify-between rounded-2xl shadow-md border border-neutral-200 bg-white hover:shadow-xl hover:-translate-y-1 transition-all min-h-[240px] cursor-pointer ${selected.includes(report.id) ? 'ring-2 ring-green-500' : ''}`} onClick={() => handleSelect(report.id)}>
                   <div className="rounded-t-2xl bg-blue-50 flex flex-col items-center py-4 px-4">
                     <Icon className={`h-8 w-8 ${iconColor} mb-1`} />
-                    <span className="text-xl font-bold text-neutral-800 text-center truncate">{project.name || "Estimate"}</span>
+                    <span className="text-lg font-bold text-neutral-800 text-center truncate">
+                      {project.name || "Project Report"}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-1 items-center text-sm text-neutral-700 py-4 px-4">
+                    <span className="text-xs text-neutral-500">
+                      {report.timestamp ? new Date(report.timestamp).toLocaleDateString() : 'Date not available'}
+                    </span>
                     {project.location && (
-                      <span className="flex items-center gap-1 text-blue-500"><MapPin className="h-4 w-4" />{project.location}</span>
+                      <span className="flex items-center gap-1 text-blue-500 text-xs">
+                        <MapPin className="h-3 w-3" />
+                        {typeof project.location === 'string' 
+                          ? project.location 
+                          : project.location?.city 
+                            ? `${project.location.city}, ${project.location.country}`
+                            : 'Location not specified'
+                        }
+                      </span>
                     )}
-                    {project.area && (
-                      <span className="text-neutral-700">Area: {project.area.toLocaleString()} {project.unit || ""}</span>
+                    <span className="text-neutral-700 text-xs">
+                      Role: {project.userRole || 'Not specified'}
+                    </span>
+                    {report.geminiResponse && (
+                      <span className="text-green-600 text-xs font-medium">✓ AI Analysis Complete</span>
                     )}
-                    {project.type && (
-                      <span className="text-neutral-700">Type: {project.type}</span>
-                    )}
-                    {typeof item.estimate?.totalCost !== 'undefined' && (
-                      <div className="text-blue-600 font-bold text-base text-center mt-2">
-                        Total Cost: ${Number(item.estimate.totalCost).toLocaleString()}
-                      </div>
+                    {report.pdfRef && (
+                      <span className="text-blue-600 text-xs font-medium">📄 PDF Available</span>
                     )}
                   </div>
                 </Card>

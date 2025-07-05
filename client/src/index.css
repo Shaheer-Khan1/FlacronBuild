@@ -4,24 +4,24 @@
 
 :root {
   --background: hsl(0, 0%, 100%);
-  --foreground: hsl(20, 14.3%, 4.1%);
+  --foreground: hsl(0, 0%, 10%);
   --muted: hsl(60, 4.8%, 95.9%);
   --muted-foreground: hsl(25, 5.3%, 44.7%);
   --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --popover-foreground: hsl(0, 0%, 10%);
   --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --card-foreground: hsl(0, 0%, 10%);
   --border: hsl(20, 5.9%, 90%);
   --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(214, 84%, 56%);
-  --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(153, 60%, 42%);
-  --secondary-foreground: hsl(24, 9.8%, 10%);
-  --accent: hsl(60, 4.8%, 95.9%);
-  --accent-foreground: hsl(24, 9.8%, 10%);
+  --primary: #ff8800;
+  --primary-foreground: #fff;
+  --secondary: #111;
+  --secondary-foreground: #fff;
+  --accent: #ff8800;
+  --accent-foreground: #fff;
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
-  --ring: hsl(20, 14.3%, 4.1%);
+  --ring: #ff8800;
   --radius: 0.5rem;
   --neutral-50: hsl(0, 0%, 98%);
   --neutral-100: hsl(0, 0%, 95%);
@@ -36,25 +36,25 @@
 }
 
 .dark {
-  --background: hsl(240, 10%, 3.9%);
-  --foreground: hsl(0, 0%, 98%);
-  --muted: hsl(240, 3.7%, 15.9%);
-  --muted-foreground: hsl(240, 5%, 64.9%);
-  --popover: hsl(240, 10%, 3.9%);
-  --popover-foreground: hsl(0, 0%, 98%);
-  --card: hsl(240, 10%, 3.9%);
-  --card-foreground: hsl(0, 0%, 98%);
-  --border: hsl(240, 3.7%, 15.9%);
-  --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(214, 84%, 56%);
-  --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(240, 3.7%, 15.9%);
-  --secondary-foreground: hsl(0, 0%, 98%);
-  --accent: hsl(240, 3.7%, 15.9%);
-  --accent-foreground: hsl(0, 0%, 98%);
-  --destructive: hsl(0, 62.8%, 30.6%);
-  --destructive-foreground: hsl(0, 0%, 98%);
-  --ring: hsl(240, 4.9%, 83.9%);
+  --background: #111;
+  --foreground: #fff;
+  --muted: #222;
+  --muted-foreground: #ff8800;
+  --popover: #111;
+  --popover-foreground: #fff;
+  --card: #111;
+  --card-foreground: #fff;
+  --border: #222;
+  --input: #222;
+  --primary: #ff8800;
+  --primary-foreground: #fff;
+  --secondary: #fff;
+  --secondary-foreground: #111;
+  --accent: #ff8800;
+  --accent-foreground: #fff;
+  --destructive: #b91c1c;
+  --destructive-foreground: #fff;
+  --ring: #ff8800;
   --radius: 0.5rem;
 }
 

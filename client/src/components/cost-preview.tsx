@@ -112,7 +112,14 @@ export default function CostPreview({ project, estimate }: CostPreviewProps) {
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center text-neutral-600">
                 <MapPin className="h-4 w-4 text-primary mr-2" />
-                <span>{project.location}</span>
+                <span>
+                  {typeof project.location === 'string' 
+                    ? project.location 
+                    : project.location?.city 
+                      ? `${project.location.city}, ${project.location.country} ${project.location.zipCode}`
+                      : 'Location not specified'
+                  }
+                </span>
               </div>
               <Badge className={regionStatus.color}>
                 {regionStatus.text}
