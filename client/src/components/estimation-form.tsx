@@ -277,6 +277,7 @@ const currencyOptions = [
 interface EstimationFormProps {
   onProjectUpdate: (project: any) => void;
   onEstimateUpdate: (estimate: any) => void;
+  disableRoleSelection?: boolean;
 }
 
 // Helper to save estimate to Firestore
@@ -424,7 +425,7 @@ function AILoadingOverlay() {
   );
 }
 
-export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasEstimate }: EstimationFormProps & { hasEstimate?: boolean }) {
+export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasEstimate, disableRoleSelection }: EstimationFormProps & { hasEstimate?: boolean }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [savedProjectId, setSavedProjectId] = useState<number | null>(null);
   const { toast } = useToast();
@@ -888,7 +889,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                   render={({ field }) => (
                     <FormItem>
                         <FormLabel>Your Role</FormLabel>
-                        <Select value={field.value} onValueChange={val => field.onChange(val)}>
+                        <Select value={field.value} onValueChange={val => field.onChange(val)} disabled={disableRoleSelection}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select your role" />

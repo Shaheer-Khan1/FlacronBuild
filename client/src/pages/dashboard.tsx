@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Header from "@/components/header";
 import EstimationForm from "@/components/estimation-form";
-import { Hammer, Home, HardHat, ClipboardCheck, Shield, CheckCircle, ArrowRight } from "lucide-react";
+import { Hammer, Home, HardHat, ClipboardCheck, Shield, CheckCircle, ArrowRight, FileText, Download } from "lucide-react";
 import FlacronBuildLogo from "../FlacronBuildLogo.webp";
 import { userRoleManager, type UserRole } from "@/lib/user-role";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,24 +65,26 @@ export default function Dashboard() {
         </div>
 
         {/* Role Features */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
-              Your Features
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {roleFeatures.map((feature, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">{feature}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="max-w-xl w-full mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
+                Your Features
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {roleFeatures.map((feature, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-gray-700">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Estimation Form */}
         <div className="max-w-xl w-full mx-auto">
@@ -90,86 +92,141 @@ export default function Dashboard() {
             onProjectUpdate={setCurrentProject}
             onEstimateUpdate={setCurrentEstimate}
             hasEstimate={!!currentEstimate}
+            disableRoleSelection={true}
           />
         </div>
 
-        {/* Role-Specific Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {userRole === "homeowner" && (
-            <>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4 text-center">
-                  <Home className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                  <h3 className="font-semibold">Quick Estimate</h3>
-                  <p className="text-sm text-gray-600">Get a basic cost estimate</p>
-                </CardContent>
-              </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4 text-center">
-                  <Hammer className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <h3 className="font-semibold">Budget Planning</h3>
-                  <p className="text-sm text-gray-600">Plan your roofing budget</p>
-                </CardContent>
-              </Card>
-            </>
-          )}
+        {/* Generate Report Section - Centered */}
+        {currentEstimate && (
+          <div className="max-w-xl w-full mx-auto">
+            <Card className="text-center">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-center">
+                  <FileText className="mr-2 h-5 w-5 text-blue-500" />
+                  Generate Report
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Your estimate has been generated successfully. You can now create a detailed PDF report.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button 
+                    onClick={() => {
+                      if (currentProject && currentEstimate) {
+                        const { generatePDFReport } = require('@/lib/pdf-generator');
+                        generatePDFReport(currentProject, currentEstimate, { 
+                          openInNewTab: true,
+                          username: 'User'
+                        });
+                      }
+                    }}
+                    className="flex-1"
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    View Report
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      if (currentProject && currentEstimate) {
+                        const { generatePDFReport } = require('@/lib/pdf-generator');
+                        generatePDFReport(currentProject, currentEstimate, { 
+                          openInNewTab: false,
+                          username: 'User'
+                        });
+                      }
+                    }}
+                    className="flex-1"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download PDF
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-          {userRole === "contractor" && (
-            <>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4 text-center">
-                  <HardHat className="h-8 w-8 text-orange-500 mx-auto mb-2" />
-                  <h3 className="font-semibold">Detailed Estimate</h3>
-                  <p className="text-sm text-gray-600">Create professional bids</p>
-                </CardContent>
-              </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4 text-center">
-                  <ArrowRight className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                  <h3 className="font-semibold">Bid Reports</h3>
-                  <p className="text-sm text-gray-600">Generate bid-ready reports</p>
-                </CardContent>
-              </Card>
-            </>
-          )}
+        {/* Role-Specific Quick Actions - Centered */}
+        <div className="max-w-2xl w-full mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {userRole === "homeowner" && (
+              <>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <Home className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                    <h3 className="font-semibold">Quick Estimate</h3>
+                    <p className="text-sm text-gray-600">Get a basic cost estimate</p>
+                  </CardContent>
+                </Card>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <Hammer className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                    <h3 className="font-semibold">Budget Planning</h3>
+                    <p className="text-sm text-gray-600">Plan your roofing budget</p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
 
-          {userRole === "inspector" && (
-            <>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4 text-center">
-                  <ClipboardCheck className="h-8 w-8 text-purple-500 mx-auto mb-2" />
-                  <h3 className="font-semibold">Inspection Report</h3>
-                  <p className="text-sm text-gray-600">Create detailed inspections</p>
-                </CardContent>
-              </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4 text-center">
-                  <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <h3 className="font-semibold">Certification</h3>
-                  <p className="text-sm text-gray-600">Generate certified reports</p>
-                </CardContent>
-              </Card>
-            </>
-          )}
+            {userRole === "contractor" && (
+              <>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <HardHat className="h-8 w-8 text-orange-500 mx-auto mb-2" />
+                    <h3 className="font-semibold">Detailed Estimate</h3>
+                    <p className="text-sm text-gray-600">Create professional bids</p>
+                  </CardContent>
+                </Card>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <ArrowRight className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                    <h3 className="font-semibold">Bid Reports</h3>
+                    <p className="text-sm text-gray-600">Generate bid-ready reports</p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
 
-          {userRole === "insurance-adjuster" && (
-            <>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4 text-center">
-                  <Shield className="h-8 w-8 text-red-500 mx-auto mb-2" />
-                  <h3 className="font-semibold">Claim Analysis</h3>
-                  <p className="text-sm text-gray-600">Analyze insurance claims</p>
-                </CardContent>
-              </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4 text-center">
-                  <CheckCircle className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                  <h3 className="font-semibold">Coverage Review</h3>
-                  <p className="text-sm text-gray-600">Review policy coverage</p>
-                </CardContent>
-              </Card>
-            </>
-          )}
+            {userRole === "inspector" && (
+              <>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <ClipboardCheck className="h-8 w-8 text-purple-500 mx-auto mb-2" />
+                    <h3 className="font-semibold">Inspection Report</h3>
+                    <p className="text-sm text-gray-600">Create detailed inspections</p>
+                  </CardContent>
+                </Card>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                    <h3 className="font-semibold">Certification</h3>
+                    <p className="text-sm text-gray-600">Generate certified reports</p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {userRole === "insurance-adjuster" && (
+              <>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <Shield className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                    <h3 className="font-semibold">Claim Analysis</h3>
+                    <p className="text-sm text-gray-600">Analyze insurance claims</p>
+                  </CardContent>
+                </Card>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 text-center">
+                    <CheckCircle className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                    <h3 className="font-semibold">Coverage Review</h3>
+                    <p className="text-sm text-gray-600">Review policy coverage</p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
