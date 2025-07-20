@@ -15,6 +15,9 @@ import AdminPage from "@/pages/admin";
 import ReportDetailPage from "@/pages/report/[id]";
 import SuccessPage from "@/pages/success";
 import CancelPage from "@/pages/cancel";
+import SupportPage from "@/pages/support";
+import Chatbot from "./components/chatbot";
+import { userRoleManager, type UserRole } from "./lib/user-role";
 
 function Router() {
   return (
@@ -30,6 +33,7 @@ function Router() {
       <Route path="/report/:id" component={ReportDetailPage} />
       <Route path="/success" component={SuccessPage} />
       <Route path="/cancel" component={CancelPage} />
+      <Route path="/support" component={SupportPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -63,6 +67,7 @@ function App() {
         <div className="pb-20">
           <Toaster />
           <Router />
+          <Chatbot />
         </div>
         <Footer />
       </TooltipProvider>

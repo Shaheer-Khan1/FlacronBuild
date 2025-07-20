@@ -191,7 +191,7 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
     
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, email, password);
       onOpenChange(false);
     } catch (e: any) {
       setError(e.message);
@@ -830,39 +830,39 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
         {message && <div className="text-center text-red-500 font-medium mb-2">{message}</div>}
         
         {isSignup ? renderSignupStep() : (
-          <form onSubmit={handleEmailAuth} className="flex flex-col gap-3">
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-            {error && <div className="text-red-500 text-sm">{error}</div>}
-            <Button type="submit" disabled={loading} className="w-full">
+        <form onSubmit={handleEmailAuth} className="flex flex-col gap-3">
+          <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+            autoFocus
+          />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+          />
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+          <Button type="submit" disabled={loading} className="w-full">
               Login
-            </Button>
-          </form>
+          </Button>
+        </form>
         )}
         
         {isSignup && signupStep === 1 && (
           <>
-            <div className="flex items-center my-2">
-              <div className="flex-1 h-px bg-gray-200" />
-              <span className="mx-2 text-xs text-gray-400">OR</span>
-              <div className="flex-1 h-px bg-gray-200" />
-            </div>
-            <Button onClick={handleGoogle} disabled={loading} variant="outline" className="w-full">
-              Continue with Google
-            </Button>
+        <div className="flex items-center my-2">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="mx-2 text-xs text-gray-400">OR</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+        <Button onClick={handleGoogle} disabled={loading} variant="outline" className="w-full">
+          Continue with Google
+        </Button>
           </>
         )}
         

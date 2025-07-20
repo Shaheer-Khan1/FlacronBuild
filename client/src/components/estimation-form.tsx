@@ -275,9 +275,10 @@ const currencyOptions = [
 ];
 
 interface EstimationFormProps {
-  onProjectUpdate: (project: any) => void;
-  onEstimateUpdate: (estimate: any) => void;
+  onEstimateGenerated?: (estimate: Estimate) => void;
+  onReportSaved?: (report: Report) => void;
   disableRoleSelection?: boolean;
+  onFieldFocus?: (fieldName: string) => void;
 }
 
 // Helper to save estimate to Firestore
@@ -891,7 +892,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                         <FormLabel>Your Role</FormLabel>
                         <Select value={field.value} onValueChange={val => field.onChange(val)} disabled={disableRoleSelection}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger onFocus={() => onFieldFocus?.('userRole')}>
                               <SelectValue placeholder="Select your role" />
                             </SelectTrigger>
                           </FormControl>
@@ -922,7 +923,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                         <FormLabel>Project Type</FormLabel>
                         <Select value={field.value} onValueChange={val => field.onChange(val)}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger onFocus={() => onFieldFocus?.('projectType')}>
                               <SelectValue placeholder="Select project type" />
                             </SelectTrigger>
                           </FormControl>
@@ -958,7 +959,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                     <FormItem>
                           <FormLabel>Country</FormLabel>
                         <FormControl>
-                            <Input placeholder="USA" {...field} />
+                            <Input placeholder="USA" {...field} onFocus={() => onFieldFocus?.('location.country')} />
                         </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -972,7 +973,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                       <FormItem>
                           <FormLabel>City</FormLabel>
                         <FormControl>
-                            <Input placeholder="Enter city" {...field} />
+                            <Input placeholder="Enter city" {...field} onFocus={() => onFieldFocus?.('location.city')} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -986,7 +987,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                       <FormItem>
                           <FormLabel>ZIP Code</FormLabel>
                           <FormControl>
-                            <Input placeholder="12345" {...field} />
+                            <Input placeholder="12345" {...field} onFocus={() => onFieldFocus?.('location.zipCode')} />
                           </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1039,7 +1040,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                   render={({ field }) => (
                     <FormItem>
                           <FormLabel>Structure Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('structureType')}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select structure type" />
@@ -1062,7 +1063,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Roof Pitch</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('roofPitch')}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select roof pitch" />
@@ -1096,6 +1097,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                               const val = e.target.value;
                               field.onChange(val === "" ? 0 : parseInt(val));
                             }}
+                            onFocus={() => onFieldFocus?.('roofAge')}
                           />
                         </FormControl>
                         <FormMessage />
@@ -1114,7 +1116,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                      render={({ field }) => (
                        <FormItem>
                          <FormLabel>Material Layers (Bottom to Top)</FormLabel>
-                         <Select onValueChange={(value) => field.onChange([...field.value, value])}>
+                         <Select onValueChange={(value) => field.onChange([...field.value, value])} onFocus={() => onFieldFocus?.('materialLayers')}>
                            <FormControl>
                              <SelectTrigger>
                                <SelectValue placeholder="Add material layer" />
@@ -1154,7 +1156,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Felt Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('felt')}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue />
@@ -1176,7 +1178,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                       control={form.control}
                       name="iceWaterShield"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3" onFocus={() => onFieldFocus?.('iceWaterShield')}>
                           <div className="space-y-0.5">
                             <FormLabel className="text-sm">Ice/Water Shield</FormLabel>
                           </div>
@@ -1196,7 +1198,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                       control={form.control}
                       name="dripEdge"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3" onFocus={() => onFieldFocus?.('dripEdge')}>
                           <div className="space-y-0.5">
                             <FormLabel className="text-sm">Drip Edge</FormLabel>
                           </div>
@@ -1216,7 +1218,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                       control={form.control}
                       name="gutterApron"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3" onFocus={() => onFieldFocus?.('gutterApron')}>
                           <div className="space-y-0.5">
                             <FormLabel className="text-sm">Gutter Apron</FormLabel>
                           </div>
@@ -1253,7 +1255,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>Inspector Name</FormLabel>
                                <FormControl>
-                                 <Input placeholder="Full name" {...field} />
+                                 <Input placeholder="Full name" {...field} onFocus={() => onFieldFocus?.('inspectorInfo.name')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1266,7 +1268,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>License Number</FormLabel>
                                <FormControl>
-                                 <Input placeholder="License #" {...field} />
+                                 <Input placeholder="License #" {...field} onFocus={() => onFieldFocus?.('inspectorInfo.license')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1282,7 +1284,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>Date of Inspection</FormLabel>
                                <FormControl>
-                                 <Input type="date" {...field} />
+                                 <Input type="date" {...field} onFocus={() => onFieldFocus?.('inspectionDate')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1294,7 +1296,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Weather Conditions</FormLabel>
-                               <Select onValueChange={field.onChange} value={field.value}>
+                               <Select onValueChange={field.onChange} value={field.value} onFocus={() => onFieldFocus?.('weatherConditions')}>
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select weather conditions" />
@@ -1330,7 +1332,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                                    <FormItem>
                                      <FormLabel>Slope Identifier</FormLabel>
                                      <FormControl>
-                                       <Input placeholder="e.g. North, South, Front, etc." {...field} />
+                                       <Input placeholder="e.g. North, South, Front, etc." {...field} onFocus={() => onFieldFocus?.(`slopeDamage.${index}.slope`)} />
                                      </FormControl>
                                      <FormMessage />
                                    </FormItem>
@@ -1343,7 +1345,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                                  render={({ field }) => (
                                    <FormItem>
                                      <FormLabel>Damage Type</FormLabel>
-                                     <Select onValueChange={field.onChange} value={field.value}>
+                                     <Select onValueChange={field.onChange} value={field.value} onFocus={() => onFieldFocus?.(`slopeDamage.${index}.damageType`)}>
                                        <FormControl>
                                          <SelectTrigger>
                                            <SelectValue placeholder="Select damage type" />
@@ -1368,7 +1370,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                                  render={({ field }) => (
                                    <FormItem>
                                      <FormLabel>Damage Severity</FormLabel>
-                                     <Select onValueChange={field.onChange} value={field.value}>
+                                     <Select onValueChange={field.onChange} value={field.value} onFocus={() => onFieldFocus?.(`slopeDamage.${index}.severity`)}>
                                        <FormControl>
                                          <SelectTrigger>
                                            <SelectValue placeholder="Select severity" />
@@ -1392,7 +1394,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                                    <FormItem>
                                      <FormLabel>Damage Description</FormLabel>
                                      <FormControl>
-                                       <Input placeholder="Detailed description of damage" {...field} />
+                                       <Input placeholder="Detailed description of damage" {...field} onFocus={() => onFieldFocus?.(`slopeDamage.${index}.description`)} />
                                      </FormControl>
                                      <FormMessage />
                                    </FormItem>
@@ -1443,7 +1445,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                            <FormItem>
                              <FormLabel>Owner Notes</FormLabel>
                              <FormControl>
-                               <Input placeholder="Additional notes from owner" {...field} />
+                               <Input placeholder="Additional notes from owner" {...field} onFocus={() => onFieldFocus?.('ownerNotes')} />
                              </FormControl>
                              <FormMessage />
                            </FormItem>
@@ -1463,7 +1465,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>Claim Number</FormLabel>
                                <FormControl>
-                                 <Input placeholder="CLM-2024-001" {...field} />
+                                 <Input placeholder="CLM-2024-001" {...field} onFocus={() => onFieldFocus?.('claimNumber')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1476,7 +1478,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>Policyholder Name</FormLabel>
                                <FormControl>
-                                 <Input placeholder="Jane Doe" {...field} />
+                                 <Input placeholder="Jane Doe" {...field} onFocus={() => onFieldFocus?.('policyholderName')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1492,7 +1494,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>Adjuster Name</FormLabel>
                                <FormControl>
-                                 <Input placeholder="Bob Johnson" {...field} />
+                                 <Input placeholder="Bob Johnson" {...field} onFocus={() => onFieldFocus?.('adjusterName')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1505,7 +1507,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>Adjuster Contact</FormLabel>
                                <FormControl>
-                                 <Input placeholder="bob@insurance.com | (555) 123-4567" {...field} />
+                                 <Input placeholder="bob@insurance.com | (555) 123-4567" {...field} onFocus={() => onFieldFocus?.('adjusterContact')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1521,7 +1523,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>Date of Loss</FormLabel>
                                <FormControl>
-                                 <Input type="date" {...field} />
+                                 <Input type="date" {...field} onFocus={() => onFieldFocus?.('dateOfLoss')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1533,7 +1535,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Damage Cause</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value}>
+                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('damageCause')}>
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select damage cause" />
@@ -1576,6 +1578,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                                              field.onChange(current.filter((item: string) => item !== option));
                                            }
                                          }}
+                                         onFocus={() => onFieldFocus?.('coverageMapping.covered')}
                                          className="h-4 w-4"
                                        />
                                        <label htmlFor={`covered-${option}`} className="text-sm">
@@ -1609,6 +1612,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                                              field.onChange(current.filter((item: string) => item !== option));
                                            }
                                          }}
+                                         onFocus={() => onFieldFocus?.('coverageMapping.excluded')}
                                          className="h-4 w-4"
                                        />
                                        <label htmlFor={`excluded-${option}`} className="text-sm">
@@ -1642,6 +1646,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                                              field.onChange(current.filter((item: string) => item !== option));
                                            }
                                          }}
+                                         onFocus={() => onFieldFocus?.('coverageMapping.maintenance')}
                                          className="h-4 w-4"
                                        />
                                        <label htmlFor={`maintenance-${option}`} className="text-sm">
@@ -1670,6 +1675,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                                  rows={3}
                                  placeholder="Describe any previous repairs, maintenance, or claims..."
                                  {...field}
+                                 onFocus={() => onFieldFocus?.('previousRepairs')}
                                />
                              </FormControl>
                              <FormMessage />
@@ -1689,7 +1695,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Job Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('jobType')}>
                         <FormControl>
                           <SelectTrigger>
                                      <SelectValue placeholder="Select job type" />
@@ -1710,7 +1716,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Material Preference</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value}>
+                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('materialPreference')}>
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select material preference" />
@@ -1738,7 +1744,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              render={({ field }) => (
                                <FormItem>
                                  <FormLabel>Worker Count</FormLabel>
-                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                 <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('laborNeeds.workerCount')}>
                                    <FormControl>
                                      <SelectTrigger>
                                        <SelectValue placeholder="Select worker count" />
@@ -1758,7 +1764,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              control={form.control}
                              name="laborNeeds.steepAssist"
                              render={({ field }) => (
-                               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4" onFocus={() => onFieldFocus?.('laborNeeds.steepAssist')}>
                                  <div className="space-y-0.5">
                                    <FormLabel className="text-base">Steep Assist</FormLabel>
                                    <div className="text-sm text-neutral-500">Requires steep assist equipment?</div>
@@ -1799,6 +1805,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                                          field.onChange(current.filter((i: string) => i !== item));
                                        }
                                      }}
+                                     onFocus={() => onFieldFocus?.('lineItems')}
                                      className="h-4 w-4"
                                    />
                                    <label htmlFor={`lineitem-${item}`} className="text-sm">
@@ -1816,7 +1823,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                          control={form.control}
                          name="localPermit"
                          render={({ field }) => (
-                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4" onFocus={() => onFieldFocus?.('localPermit')}>
                              <div className="space-y-0.5">
                                <FormLabel className="text-base">Local Permit Required</FormLabel>
                                <div className="text-sm text-neutral-500">Does this job require local permits?</div>
@@ -1847,7 +1854,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>Your Name</FormLabel>
                                <FormControl>
-                                 <Input placeholder="John Smith" {...field} />
+                                 <Input placeholder="John Smith" {...field} onFocus={() => onFieldFocus?.('homeownerInfo.name')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1860,7 +1867,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                              <FormItem>
                                <FormLabel>Email Address</FormLabel>
                                <FormControl>
-                                 <Input type="email" placeholder="john@example.com" {...field} />
+                                 <Input type="email" placeholder="john@example.com" {...field} onFocus={() => onFieldFocus?.('homeownerInfo.email')} />
                                </FormControl>
                                <FormMessage />
                              </FormItem>
@@ -1875,7 +1882,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Project Urgency</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value}>
+                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('urgency')}>
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select urgency" />
@@ -1897,7 +1904,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Budget Style</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value}>
+                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('budgetStyle')}>
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select budget style" />
@@ -1923,7 +1930,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Preferred Language</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value}>
+                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('preferredLanguage')}>
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select language" />
@@ -1947,7 +1954,7 @@ export default function EstimationForm({ onProjectUpdate, onEstimateUpdate, hasE
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Preferred Currency</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value}>
+                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => onFieldFocus?.('preferredCurrency')}>
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select currency" />

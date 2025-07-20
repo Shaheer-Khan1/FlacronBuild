@@ -6,25 +6,33 @@ import FlacronBuildLogo from "../FlacronBuildLogo.webp";
 import { userRoleManager, type UserRole } from "@/lib/user-role";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Chatbot from "@/components/chatbot";
 // import LiveScrapingTest from "@/components/live-scraping-test";
 
 export default function Dashboard() {
-  const [currentProject, setCurrentProject] = useState<any>(null);
-  const [currentEstimate, setCurrentEstimate] = useState<any>(null);
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>('homeowner');
+  const [currentFormField, setCurrentFormField] = useState<string | undefined>();
 
   useEffect(() => {
-    // Get current user role
     const role = userRoleManager.getUserRole();
-    setUserRole(role);
-
-    // Subscribe to role changes
-    const unsubscribe = userRoleManager.onRoleChange((newRole) => {
-      setUserRole(newRole);
-    });
-
-    return unsubscribe;
+    if (role) {
+      setUserRole(role);
+    }
   }, []);
+
+  const handleFieldFocus = (fieldName: string) => {
+    setCurrentFormField(fieldName);
+  };
+
+  const handleEstimateGenerated = (estimate: any) => {
+    // Handle estimate generation
+    console.log('Estimate generated:', estimate);
+  };
+
+  const handleReportSaved = (report: any) => {
+    // Handle report saving
+    console.log('Report saved:', report);
+  };
 
   const renderRoleBasedDashboard = () => {
     if (!userRole) {
@@ -88,65 +96,40 @@ export default function Dashboard() {
 
         {/* Estimation Form */}
         <div className="max-w-xl w-full mx-auto">
-          <EstimationForm 
-            onProjectUpdate={setCurrentProject}
-            onEstimateUpdate={setCurrentEstimate}
-            hasEstimate={!!currentEstimate}
-            disableRoleSelection={true}
-          />
+                  <EstimationForm
+          onEstimateGenerated={handleEstimateGenerated}
+          onReportSaved={handleReportSaved}
+          hasEstimate={false}
+          disableRoleSelection={true}
+          onFieldFocus={handleFieldFocus}
+        />
         </div>
 
         {/* Generate Report Section - Centered */}
-        {currentEstimate && (
-          <div className="max-w-xl w-full mx-auto">
-            <Card className="text-center">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-center">
-                  <FileText className="mr-2 h-5 w-5 text-blue-500" />
-                  Generate Report
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  Your estimate has been generated successfully. You can now create a detailed PDF report.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button 
-                    onClick={() => {
-                      if (currentProject && currentEstimate) {
-                        const { generatePDFReport } = require('@/lib/pdf-generator');
-                        generatePDFReport(currentProject, currentEstimate, { 
-                          openInNewTab: true,
-                          username: 'User'
-                        });
-                      }
-                    }}
-                    className="flex-1"
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    View Report
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => {
-                      if (currentProject && currentEstimate) {
-                        const { generatePDFReport } = require('@/lib/pdf-generator');
-                        generatePDFReport(currentProject, currentEstimate, { 
-                          openInNewTab: false,
-                          username: 'User'
-                        });
-                      }
-                    }}
-                    className="flex-1"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download PDF
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        <div className="max-w-xl w-full mx-auto">
+          <Card className="text-center">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-center">
+                <FileText className="mr-2 h-5 w-5 text-blue-500" />
+                Generate Report
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Generate detailed PDF reports from your estimates.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button 
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Learn More
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Role-Specific Quick Actions - Centered */}
         <div className="max-w-2xl w-full mx-auto">
@@ -264,6 +247,26 @@ export default function Dashboard() {
         <div className="mt-12 space-y-8">
           {/* <LiveScrapingTest /> */}
         </div>
+
+        {/* Chatbot */}
+        <Chatbot 
+          onRoleSelect={(role) => {
+            // Update user role in the system
+            userRoleManager.setUserRole(role);
+            // Refresh the dashboard
+            window.location.reload();
+          }}
+          onNavigateToPricing={() => {
+            // Open login dialog with pricing focus
+            window.location.href = "/?show=pricing";
+          }}
+          onNavigateToSupport={() => {
+            // Navigate to support page or open contact form
+            window.location.href = "/support";
+          }}
+          isFirstTimeUser={!localStorage.getItem('flacronbuild-onboarding-seen')}
+          currentFormField={currentFormField}
+        />
       </div>
     </div>
   );
