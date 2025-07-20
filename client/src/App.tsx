@@ -13,6 +13,8 @@ import EstimateEditPage from "@/pages/estimate-edit";
 import UserSettingsPage from "@/pages/user-settings";
 import AdminPage from "@/pages/admin";
 import ReportDetailPage from "@/pages/report/[id]";
+import SuccessPage from "@/pages/success";
+import CancelPage from "@/pages/cancel";
 
 function Router() {
   return (
@@ -26,6 +28,8 @@ function Router() {
       <Route path="/estimate/:id" component={EstimateDetailPage} />
       <Route path="/estimate/:id/edit" component={EstimateEditPage} />
       <Route path="/report/:id" component={ReportDetailPage} />
+      <Route path="/success" component={SuccessPage} />
+      <Route path="/cancel" component={CancelPage} />
       <Route component={NotFound} />
     </Switch>
   );

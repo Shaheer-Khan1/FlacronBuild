@@ -5,7 +5,40 @@ import { storage } from "./storage";
 import { insertProjectSchema, insertEstimateSchema } from "@shared/schema";
 import { realCostCalculator, type ProjectRequirements } from "./cost-calculator";
 import { scrapingVerification } from "./scraping-verification";
+import Stripe from "stripe";
 
+// Initialize Stripe with your secret key
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+  apiVersion: "2025-06-30.basil",
+});
+
+// Define the pricing for each role
+const rolePricing = {
+  homeowner: {
+    monthly: 1999, // $19.99 in cents
+    yearly: null, // No yearly option for homeowner
+  },
+  contractor: {
+    monthly: 9799, // $97.99 in cents
+    yearly: 99999, // $999.99 in cents
+  },
+  inspector: {
+    monthly: 9799, // $97.99 in cents
+    yearly: 99999, // $999.99 in cents
+  },
+  "insurance-adjuster": {
+    monthly: 9799, // $97.99 in cents
+    yearly: 99999, // $999.99 in cents
+  },
+};
+
+// Define role names for dynamic product creation
+const roleNames = {
+  homeowner: "Homeowner Subscription",
+  contractor: "Contractor Subscription", 
+  inspector: "Inspector Subscription",
+  "insurance-adjuster": "Insurance Adjuster Subscription",
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all projects
@@ -345,6 +378,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: "Failed to verify data sources",
         error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Get Stripe session details
+  app.get("/api/stripe-session/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID is required" });
+      }
+
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      // Extract role from session metadata
+      const role = session.metadata?.role;
+      
+      res.json({ 
+        sessionId: session.id,
+        role: role,
+        billingPeriod: session.metadata?.billingPeriod,
+        customerEmail: session.customer_email,
+        customerName: session.metadata?.customerName
+      });
+    } catch (error) {
+      console.error("Error retrieving session:", error);
+      res.status(500).json({ 
+        message: "Failed to retrieve session details",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Create Stripe checkout session
+  app.post("/api/create-checkout-session", async (req, res) => {
+    try {
+      const { role, billingPeriod, customerEmail, customerName } = req.body;
+
+      // Validate the request
+      if (!role || !billingPeriod || !customerEmail) {
+        return res.status(400).json({ 
+          message: "Missing required fields: role, billingPeriod, customerEmail" 
+        });
+      }
+
+      // Validate role
+      if (!rolePricing[role as keyof typeof rolePricing]) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      // Validate billing period
+      if (billingPeriod !== "monthly" && billingPeriod !== "yearly") {
+        return res.status(400).json({ message: "Invalid billing period" });
+      }
+
+      // Check if yearly billing is available for this role
+      if (billingPeriod === "yearly" && !rolePricing[role as keyof typeof rolePricing].yearly) {
+        return res.status(400).json({ message: "Yearly billing not available for this role" });
+      }
+
+      // Get the price for the selected role and billing period
+      const price = billingPeriod === "monthly" 
+        ? rolePricing[role as keyof typeof rolePricing].monthly
+        : rolePricing[role as keyof typeof rolePricing].yearly;
+
+      if (!price) {
+        return res.status(400).json({ message: "Invalid pricing configuration" });
+      }
+
+      // Create Stripe checkout session with dynamic pricing
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: roleNames[role as keyof typeof roleNames],
+                description: `${roleNames[role as keyof typeof roleNames]} - ${billingPeriod === "monthly" ? "Monthly" : "Yearly"} billing`,
+              },
+              recurring: {
+                interval: billingPeriod === "monthly" ? "month" : "year",
+              },
+              unit_amount: price,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "subscription",
+        success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin}/cancel`,
+        customer_email: customerEmail,
+        metadata: {
+          role: role,
+          billingPeriod: billingPeriod,
+          customerName: customerName || "",
+        },
+        subscription_data: {
+          metadata: {
+            role: role,
+            billingPeriod: billingPeriod,
+            customerName: customerName || "",
+          },
+        },
+      });
+
+      res.json({ sessionId: session.id, url: session.url });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      console.error("Stripe key status:", process.env.STRIPE_SECRET_KEY ? "Present" : "Missing");
+      res.status(500).json({ 
+        message: "Failed to create checkout session",
+        error: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
