@@ -64,32 +64,21 @@ export default function Chatbot({
 
   // Initialize messages based on onboarding state
   useEffect(() => {
-    const storedOnboarding = localStorage.getItem('flacronbuild-onboarding-seen');
-    const hasSeen = storedOnboarding === 'true';
-    setHasSeenOnboarding(hasSeen);
-
-    if (isFirstTimeUser && !hasSeen) {
-      // Auto-popup for first-time users
-      setTimeout(() => {
-        setIsOpen(true);
-        startOnboarding();
-      }, 2000);
-    } else {
-      // Regular welcome message
-      setMessages([{
-        id: '1',
-        type: 'bot',
-        content: "Hi! I'm your FlacronBuild assistant. I can help you with:\n\n🏠 Role selection and features\n💰 Pricing and plans\n📋 Step-by-step guidance\n❓ General questions\n\nWhat would you like to know?",
-        timestamp: new Date(),
-        suggestions: [
-          "Help me choose a role",
-          "Tell me about pricing",
-          "How does the estimator work?",
-          "What features do I get?"
-        ]
-      }]);
-    }
-  }, [isFirstTimeUser]);
+    // Remove onboarding auto-open logic
+    // Only set initial messages, do not open automatically
+    setMessages([{
+      id: '1',
+      type: 'bot',
+      content: "Hi! I'm your FlacronBuild assistant. I can help you with:\n\n🏠 Role selection and features\n💰 Pricing and plans\n📋 Step-by-step guidance\n❓ General questions\n\nWhat would you like to know?",
+      timestamp: new Date(),
+      suggestions: [
+        "Help me choose a role",
+        "Tell me about pricing",
+        "How does the estimator work?",
+        "What features do I get?"
+      ]
+    }]);
+  }, []);
 
   // Contextual help for form fields
   useEffect(() => {
@@ -167,6 +156,7 @@ export default function Chatbot({
   }, [isOpen]);
 
   const addMessage = (content: string, type: 'user' | 'bot', suggestions?: string[], roleButtons?: any[], tierRecommendation?: any) => {
+    console.log('Adding message:', { content, type });
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       type,
@@ -352,7 +342,7 @@ export default function Chatbot({
     <>
       {/* Chat Toggle Button */}
       <Button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen((open) => !open)}
         className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg bg-orange-500 hover:bg-orange-600"
         size="icon"
       >
@@ -365,98 +355,100 @@ export default function Chatbot({
           {/* Messages */}
           <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
             <div className="space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+              {messages.map((msg) =>
+                (msg.type === 'bot' && (msg.content.startsWith('action:') || msg.content.startsWith('role:'))) ? null : (
                   <div
-                    className={`max-w-[85%] rounded-lg p-3 ${
-                      message.type === 'user'
-                        ? 'bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900'
-                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100'
-                    }`}
+                    key={msg.id}
+                    className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className="flex items-start space-x-2">
-                      {message.type === 'bot' && <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />}
-                      <div className="whitespace-pre-wrap text-sm break-words overflow-hidden">{message.content}</div>
-                      {message.type === 'user' && <User className="h-4 w-4 mt-0.5 flex-shrink-0" />}
-                    </div>
-                    
-                    {/* Role Selection Buttons */}
-                    {message.roleButtons && message.type === 'bot' && (
-                      <div className="mt-3 space-y-2 relative z-10">
-                        {message.roleButtons.map((roleBtn, index) => {
-                          const IconComponent = roleBtn.icon;
-                          return (
+                    <div
+                      className={`max-w-[85%] rounded-lg p-3 ${
+                        msg.type === 'user'
+                          ? 'bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900'
+                          : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-2">
+                        {msg.type === 'bot' && <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+                        <div className="whitespace-pre-wrap text-sm break-words overflow-hidden">{msg.content}</div>
+                        {msg.type === 'user' && <User className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+                      </div>
+                      
+                      {/* Role Selection Buttons */}
+                      {msg.roleButtons && msg.type === 'bot' && (
+                        <div className="mt-3 space-y-2 relative z-10">
+                          {msg.roleButtons.map((roleBtn, index) => {
+                            const IconComponent = roleBtn.icon;
+                            return (
+                              <Button
+                                key={index}
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-left justify-start h-auto p-2 text-xs border-neutral-200 hover:bg-neutral-50 dark:border-neutral-600 dark:hover:bg-neutral-700 focus:bg-neutral-50 dark:focus:bg-neutral-700 focus:border-neutral-300 dark:focus:border-neutral-500 active:bg-neutral-100 dark:active:bg-neutral-600 transition-colors relative z-10"
+                                onClick={() => handleRoleButtonClick(roleBtn.role)}
+                              >
+                                <div className="flex items-start w-full">
+                                  <IconComponent className="h-4 w-4 mr-2 text-neutral-600 dark:text-neutral-400 flex-shrink-0 mt-0.5" />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-xs">{roleBtn.label}</div>
+                                    <div className="text-neutral-500 dark:text-neutral-400 text-xs leading-relaxed break-words overflow-hidden">{roleBtn.description}</div>
+                                  </div>
+                                </div>
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Tier Recommendation */}
+                      {msg.tierRecommendation && msg.type === 'bot' && (
+                        <div className="mt-3 p-3 bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-800 dark:to-neutral-700 rounded-lg border border-neutral-200 dark:border-neutral-600">
+                          <div className="flex items-center mb-2">
+                            <Target className="h-4 w-4 text-neutral-600 dark:text-neutral-400 mr-2 flex-shrink-0" />
+                            <span className="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">Recommended Plan</span>
+                          </div>
+                          <div className="text-xs">
+                            <div className="font-medium text-neutral-900 dark:text-neutral-100 mb-1">{msg.tierRecommendation.tier}</div>
+                            <div className="text-neutral-700 dark:text-neutral-300 mb-2 break-words overflow-hidden">{msg.tierRecommendation.reason}</div>
+                            <ul className="text-neutral-600 dark:text-neutral-400 space-y-1">
+                              {msg.tierRecommendation.features.map((feature, index) => (
+                                <li key={index} className="flex items-start">
+                                  <div className="w-1 h-1 bg-neutral-400 dark:bg-neutral-500 rounded-full mr-2 mt-1.5 flex-shrink-0" />
+                                  <span className="break-words overflow-hidden text-xs">{feature}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Suggestions */}
+                      {msg.suggestions && msg.type === 'bot' && (
+                        <div className="mt-3 space-y-2">
+                          {msg.suggestions.map((suggestion, index) => (
                             <Button
                               key={index}
                               variant="outline"
                               size="sm"
-                              className="w-full text-left justify-start h-auto p-2 text-xs border-neutral-200 hover:bg-neutral-50 dark:border-neutral-600 dark:hover:bg-neutral-700 focus:bg-neutral-50 dark:focus:bg-neutral-700 focus:border-neutral-300 dark:focus:border-neutral-500 active:bg-neutral-100 dark:active:bg-neutral-600 transition-colors relative z-10"
-                              onClick={() => handleRoleButtonClick(roleBtn.role)}
+                              className="w-full text-left justify-start h-auto p-2 text-xs break-words overflow-hidden"
+                              onClick={() => {
+                                if (onboardingStep === 'tier-recommendation' && suggestion.includes('trial')) {
+                                  completeOnboarding();
+                                  if (onNavigateToPricing) onNavigateToPricing();
+                                } else {
+                                  handleSuggestionClick(suggestion);
+                                }
+                              }}
                             >
-                              <div className="flex items-start w-full">
-                                <IconComponent className="h-4 w-4 mr-2 text-neutral-600 dark:text-neutral-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-xs">{roleBtn.label}</div>
-                                  <div className="text-neutral-500 dark:text-neutral-400 text-xs leading-relaxed break-words overflow-hidden">{roleBtn.description}</div>
-                                </div>
-                              </div>
+                              <span className="break-words overflow-hidden">{suggestion}</span>
                             </Button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Tier Recommendation */}
-                    {message.tierRecommendation && message.type === 'bot' && (
-                      <div className="mt-3 p-3 bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-800 dark:to-neutral-700 rounded-lg border border-neutral-200 dark:border-neutral-600">
-                        <div className="flex items-center mb-2">
-                          <Target className="h-4 w-4 text-neutral-600 dark:text-neutral-400 mr-2 flex-shrink-0" />
-                          <span className="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">Recommended Plan</span>
+                          ))}
                         </div>
-                        <div className="text-xs">
-                          <div className="font-medium text-neutral-900 dark:text-neutral-100 mb-1">{message.tierRecommendation.tier}</div>
-                          <div className="text-neutral-700 dark:text-neutral-300 mb-2 break-words overflow-hidden">{message.tierRecommendation.reason}</div>
-                          <ul className="text-neutral-600 dark:text-neutral-400 space-y-1">
-                            {message.tierRecommendation.features.map((feature, index) => (
-                              <li key={index} className="flex items-start">
-                                <div className="w-1 h-1 bg-neutral-400 dark:bg-neutral-500 rounded-full mr-2 mt-1.5 flex-shrink-0" />
-                                <span className="break-words overflow-hidden text-xs">{feature}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Suggestions */}
-                    {message.suggestions && message.type === 'bot' && (
-                      <div className="mt-3 space-y-2">
-                        {message.suggestions.map((suggestion, index) => (
-                          <Button
-                            key={index}
-                            variant="outline"
-                            size="sm"
-                            className="w-full text-left justify-start h-auto p-2 text-xs break-words overflow-hidden"
-                            onClick={() => {
-                              if (onboardingStep === 'tier-recommendation' && suggestion.includes('trial')) {
-                                completeOnboarding();
-                                if (onNavigateToPricing) onNavigateToPricing();
-                              } else {
-                                handleSuggestionClick(suggestion);
-                              }
-                            }}
-                          >
-                            <span className="break-words overflow-hidden">{suggestion}</span>
-                          </Button>
-                        ))}
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              )}
               
               {isLoading && (
                 <div className="flex justify-start">

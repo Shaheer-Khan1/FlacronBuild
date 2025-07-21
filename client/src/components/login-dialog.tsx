@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Check, Star, Shield, Users, User, HardHat, ClipboardCheck, Shield as ShieldIcon } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { GoogleMap, Marker, useLoadScript } from '@react-google-maps/api';
+import { useState, useEffect } from "react";
 
 interface LoginDialogProps {
   open: boolean;
@@ -128,7 +130,8 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
     companyName: "",
     adjusterId: "",
     claimTypesHandled: "",
-    jurisdiction: ""
+    jurisdiction: "",
+    jurisdictionLocation: { lat: 0, lng: 0, address: "" }
   });
 
   // Validation function for role-specific fields
@@ -140,7 +143,7 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
     } else if (selectedPlan === "inspector") {
       return roleData.licenseId && roleData.experienceYears && roleData.toolsUsed;
     } else if (selectedPlan === "insurance-adjuster") {
-      return roleData.companyName && roleData.adjusterId && roleData.claimTypesHandled && roleData.jurisdiction;
+      return roleData.companyName && roleData.adjusterId && roleData.claimTypesHandled && roleData.jurisdictionLocation.lat !== 0;
     }
     return false;
   };
@@ -285,7 +288,8 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
       companyName: "",
       adjusterId: "",
       claimTypesHandled: "",
-      jurisdiction: ""
+      jurisdiction: "",
+      jurisdictionLocation: { lat: 0, lng: 0, address: "" }
     });
     setError(null);
   };
@@ -705,6 +709,23 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
                       onChange={(e) => setRoleData({...roleData, jurisdiction: e.target.value})}
                       className={`text-sm ${!roleData.jurisdiction ? 'border-red-300' : ''}`}
                     />
+                    {/* Google Maps Picker */}
+                    <JurisdictionMapPicker
+                      apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
+                      value={roleData.jurisdictionLocation}
+                      onChange={(loc: { lat: number; lng: number; address: string }) => {
+                        setRoleData({
+                          ...roleData,
+                          jurisdictionLocation: loc,
+                          jurisdiction: loc.address || '' // auto-fill the jurisdiction field
+                        });
+                      }}
+                    />
+                    {roleData.jurisdictionLocation && (
+                      <div className="mt-2 text-xs text-gray-600">
+                        <strong>Selected:</strong> {roleData.jurisdictionLocation.address || `${roleData.jurisdictionLocation.lat}, ${roleData.jurisdictionLocation.lng}`}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -878,4 +899,43 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
       </DialogContent>
     </Dialog>
   );
+} 
+
+function JurisdictionMapPicker({ apiKey, value, onChange }: {
+  apiKey: string;
+  value: { lat: number; lng: number; address: string };
+  onChange: (loc: { lat: number; lng: number; address: string }) => void;
+}) {
+  const { isLoaded } = useLoadScript({ googleMapsApiKey: apiKey, libraries: ['places'] });
+  const [marker, setMarker] = useState(value || null);
+  useEffect(() => { if (value) setMarker(value); }, [value]);
+  return isLoaded ? (
+    <div className="my-2">
+      <GoogleMap
+        mapContainerStyle={{ width: '100%', height: '200px' }}
+        center={marker || { lat: 37.7749, lng: -122.4194 }}
+        zoom={marker ? 12 : 4}
+        onClick={async (e) => {
+          const lat = e.latLng?.lat();
+          const lng = e.latLng?.lng();
+          let address = '';
+          if (lat && lng) {
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+              if (status === 'OK' && results && results[0]) {
+                address = results[0].formatted_address;
+                setMarker({ lat, lng, address });
+                onChange({ lat, lng, address });
+              } else {
+                setMarker({ lat, lng, address: '' });
+                onChange({ lat, lng, address: '' });
+              }
+            });
+          }
+        }}
+      >
+        {marker && <Marker position={{ lat: marker.lat, lng: marker.lng }} />}
+      </GoogleMap>
+    </div>
+  ) : <div>Loading map...</div>;
 } 

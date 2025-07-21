@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import Chatbot from "@/components/chatbot";
 // import LiveScrapingTest from "@/components/live-scraping-test";
 
+const normalizeRole = (role: string): UserRole => {
+  if (["inspector", "insurance-adjuster", "contractor", "homeowner"].includes(role)) return role as UserRole;
+  return "homeowner";
+};
+
 export default function Dashboard() {
   const [userRole, setUserRole] = useState<UserRole>('homeowner');
   const [currentFormField, setCurrentFormField] = useState<string | undefined>();
@@ -97,6 +102,7 @@ export default function Dashboard() {
         {/* Estimation Form */}
         <div className="max-w-xl w-full mx-auto">
                   <EstimationForm
+          userRole={normalizeRole(userRole)}
           onEstimateGenerated={handleEstimateGenerated}
           onReportSaved={handleReportSaved}
           hasEstimate={false}
@@ -230,16 +236,16 @@ export default function Dashboard() {
             </div>
           </div>
           {!userRole && (
-            <div className="text-neutral-600 text-base text-center max-w-2xl">
-              AI-powered roofing cost estimation with professional reports for homeowners, contractors, inspectors, and insurance adjusters. Get accurate, data-driven estimates for roof repairs, replacements, and maintenance.
-            </div>
+          <div className="text-neutral-600 text-base text-center max-w-2xl">
+            AI-powered roofing cost estimation with professional reports for homeowners, contractors, inspectors, and insurance adjusters. Get accurate, data-driven estimates for roof repairs, replacements, and maintenance.
+          </div>
           )}
         </div>
         
         {!userRole && (
-          <div className="mb-8 text-center text-base text-neutral-600 bg-neutral-100 rounded-lg py-3 px-4">
-            <strong>Note:</strong> This tool provides professional roofing cost estimates based on current market data and material prices. Actual costs can vary ±15% depending on local conditions, material availability, and contractor rates. Most accurate for properties in the United States.
-          </div>
+        <div className="mb-8 text-center text-base text-neutral-600 bg-neutral-100 rounded-lg py-3 px-4">
+          <strong>Note:</strong> This tool provides professional roofing cost estimates based on current market data and material prices. Actual costs can vary ±15% depending on local conditions, material availability, and contractor rates. Most accurate for properties in the United States.
+        </div>
         )}
 
         {renderRoleBasedDashboard()}
