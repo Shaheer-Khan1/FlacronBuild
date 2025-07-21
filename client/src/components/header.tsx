@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import LoginDialog from "./login-dialog";
 import { auth, writeHiTest } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, User as FirebaseUser } from "firebase/auth";
+import { userRoleManager } from "@/lib/user-role";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -25,6 +26,7 @@ export default function Header() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loginMessage, setLoginMessage] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentSignupStep, setCurrentSignupStep] = useState(1);
   const [, navigate] = useLocation();
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export default function Header() {
 
   const handleLogout = async () => {
     await signOut(auth);
+    userRoleManager.clearUserRole();
   };
 
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : "/";
@@ -63,7 +66,12 @@ export default function Header() {
 
   return (
     <>
-      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} message={loginMessage} />
+      <LoginDialog 
+        open={loginOpen} 
+        onOpenChange={setLoginOpen} 
+        message={loginMessage} 
+        onStepChange={setCurrentSignupStep}
+      />
       <header className="w-full bg-white border-b border-neutral-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
         <div className="flex items-center">
@@ -136,7 +144,12 @@ export default function Header() {
               <button 
                 className="w-8 h-8 bg-primary rounded-full flex items-center justify-center" 
                 onClick={() => {
-                  setLoginMessage('Please login to access your profile');
+                  // Only show the message on steps 1 and 2, not on step 3
+                  if (currentSignupStep <= 2) {
+                    setLoginMessage('Please login to access your profile');
+                  } else {
+                    setLoginMessage('');
+                  }
                   setLoginOpen(true);
                 }}
               >

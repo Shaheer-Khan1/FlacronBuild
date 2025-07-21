@@ -5,7 +5,40 @@ import { storage } from "./storage";
 import { insertProjectSchema, insertEstimateSchema } from "@shared/schema";
 import { realCostCalculator, type ProjectRequirements } from "./cost-calculator";
 import { scrapingVerification } from "./scraping-verification";
+import Stripe from "stripe";
 
+// Initialize Stripe with your secret key
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+  apiVersion: "2025-06-30.basil",
+});
+
+// Define the pricing for each role
+const rolePricing = {
+  homeowner: {
+    monthly: 1999, // $19.99 in cents
+    yearly: null, // No yearly option for homeowner
+  },
+  contractor: {
+    monthly: 9799, // $97.99 in cents
+    yearly: 99999, // $999.99 in cents
+  },
+  inspector: {
+    monthly: 9799, // $97.99 in cents
+    yearly: 99999, // $999.99 in cents
+  },
+  "insurance-adjuster": {
+    monthly: 9799, // $97.99 in cents
+    yearly: 99999, // $999.99 in cents
+  },
+};
+
+// Define role names for dynamic product creation
+const roleNames = {
+  homeowner: "Homeowner Subscription",
+  contractor: "Contractor Subscription", 
+  inspector: "Inspector Subscription",
+  "insurance-adjuster": "Insurance Adjuster Subscription",
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all projects
@@ -345,6 +378,392 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: "Failed to verify data sources",
         error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Get Stripe session details
+  app.get("/api/stripe-session/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID is required" });
+      }
+
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      // Extract role from session metadata
+      const role = session.metadata?.role;
+      
+      res.json({ 
+        sessionId: session.id,
+        role: role,
+        billingPeriod: session.metadata?.billingPeriod,
+        customerEmail: session.customer_email,
+        customerName: session.metadata?.customerName
+      });
+    } catch (error) {
+      console.error("Error retrieving session:", error);
+      res.status(500).json({ 
+        message: "Failed to retrieve session details",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Chatbot endpoint using Gemini API
+  app.post("/api/chatbot", async (req, res) => {
+    try {
+      const { message, conversationHistory } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      // Check if Gemini API key is available
+      if (!process.env.GEMINI_API_KEY) {
+        // Fallback responses when API key is not available
+        const fallbackResponses = {
+          'role': {
+            response: "I can help you choose the right role! Here are your options:\n\n🏠 **Homeowner**\n• Get estimates for your own projects\n• Simplified interface for easy use\n• Budget planning tools\n• Basic PDF reports\n\n🧱 **Contractor**\n• Create professional bids and estimates\n• Detailed cost breakdowns\n• Editable line items\n• Bid-ready reports\n\n🧑‍💼 **Inspector**\n• Conduct detailed inspections and assessments\n• Slope-by-slope damage input\n• Component condition checklist\n• Certification tools\n\n💼 **Insurance Adjuster**\n• Analyze claims and coverage\n• Damage cause classification\n• Coverage tables\n• Claim metadata\n\nWhich role interests you most?",
+            suggestions: [
+              "I want to be a Homeowner",
+              "I want to be a Contractor", 
+              "I want to be an Inspector",
+              "I want to be an Insurance Adjuster"
+            ]
+          },
+          'pricing': {
+            response: "Here are our current pricing plans:\n\n🏠 **Homeowner Plan**\n• **Price**: $19.99/month\n• **Features**:\n  - Basic estimator with simplified interface\n  - Budget planning tools\n  - Standard PDF reports\n  - Email support\n\n🧱 **Contractor Plan**\n• **Price**: $97.99/month or $999.99/year (Save $175/year)\n• **Features**:\n  - Full estimator with detailed breakdowns\n  - Bid-ready reports with editable line items\n  - Professional formatting\n  - Priority support\n\n🧑‍💼 **Inspector Plan**\n• **Price**: $97.99/month or $999.99/year (Save $175/year)\n• **Features**:\n  - Inspection tools and certification\n  - Component condition checklist\n  - Detailed inspection reports\n  - Priority support\n\n💼 **Insurance Adjuster Plan**\n• **Price**: $97.99/month or $999.99/year (Save $175/year)\n• **Features**:\n  - Claim analysis and coverage tools\n  - Damage cause classification\n  - Insurance-specific reports\n  - Priority support\n\nAll plans include unlimited estimates and updates.",
+            suggestions: [
+              "Yes, I want to see pricing details",
+              "No, tell me about features instead",
+              "Can I change plans later?",
+              "Is there a free trial?"
+            ]
+          },
+          'how': {
+            response: "Here's how FlacronBuild works:\n\n📋 **Step 1: Enter Project Details**\n• Fill in your roof specifications\n• Select materials and damage types\n• Add location and project info\n\n🤖 **Step 2: AI Analysis**\n• Our system analyzes materials and labor costs\n• Considers local market rates\n• Factors in project complexity\n\n💰 **Step 3: Generate Estimate**\n• Get detailed cost breakdowns\n• See line-by-line pricing\n• Review material and labor costs\n\n📄 **Step 4: Download Report**\n• Professional PDF reports ready for use\n• Customizable formatting\n• Share with clients or insurance\n\nThe entire process takes just a few minutes and provides accurate estimates based on current market data.",
+            suggestions: [
+              "Yes, I need a step-by-step guide",
+              "No, tell me what information I need",
+              "How accurate are the estimates?",
+              "Can I save my projects?"
+            ]
+          },
+          'features': {
+            response: "Each role gets different features:\n\n🏠 **Homeowner Features**\n• **Basic Cost Estimator**: Simple interface for quick estimates\n• **Budget Planning Tools**: Track costs and plan your budget\n• **PDF Reports**: Download professional reports\n• **Email Support**: Get help when you need it\n\n🧱 **Contractor Features**\n• **Full Detailed Estimator**: Comprehensive cost analysis\n• **Editable Line Items**: Customize every aspect of your estimate\n• **Bid-Ready Reports**: Professional formatting for clients\n• **Priority Support**: Get help faster\n\n🧑‍💼 **Inspector Features**\n• **Slope-by-Slope Damage Input**: Detailed damage assessment\n• **Component Condition Checklist**: Systematic inspection process\n• **Certification Tools**: Professional certification features\n• **Detailed Inspection Reports**: Comprehensive documentation\n\n💼 **Insurance Adjuster Features**\n• **Damage Cause Classification**: Identify damage types\n• **Coverage Tables**: Insurance-specific calculations\n• **Claim Metadata**: Track claim information\n• **Insurance-Specific Reports**: Tailored for insurance use",
+            suggestions: [
+              "Yes, I need detailed features",
+              "No, tell me about pricing instead",
+              "How do I get started?",
+              "Contact support"
+            ]
+          },
+          'certification': {
+            response: "Great question about certifications!\n\n🧑‍💼 **Inspector Role Certifications**\n• **Professional Certification**: Industry-recognized credentials\n• **Training Materials**: Learn best practices\n• **Compliance Tools**: Meet industry standards\n• **Documentation**: Maintain certification records\n\n📋 **What's Included**\n• Certification tracking and renewal reminders\n• Professional development resources\n• Industry-standard inspection protocols\n• Continuing education credits\n\n💼 **Insurance Adjuster Certifications**\n• **Claims Certification**: Specialized training for insurance work\n• **Coverage Analysis**: Learn insurance-specific tools\n• **Regulatory Compliance**: Stay up-to-date with requirements\n• **Professional Credentials**: Industry recognition",
+            suggestions: [
+              "Yes, I need certification",
+              "No, I don't need certification",
+              "Tell me about training",
+              "What certifications are available?"
+            ]
+          }
+        };
+
+        // Determine response based on message content
+        const lowerMessage = message.toLowerCase();
+        let responseData;
+
+        if (lowerMessage.includes('certification') || lowerMessage.includes('certified') || lowerMessage.includes('training')) {
+          responseData = fallbackResponses.certification;
+        } else if (lowerMessage.includes('role') || lowerMessage.includes('choose') || lowerMessage.includes('homeowner') || lowerMessage.includes('contractor') || lowerMessage.includes('inspector') || lowerMessage.includes('adjuster')) {
+          responseData = fallbackResponses.role;
+        } else if (lowerMessage.includes('pricing') || lowerMessage.includes('cost') || lowerMessage.includes('price') || lowerMessage.includes('plan')) {
+          responseData = fallbackResponses.pricing;
+        } else if (lowerMessage.includes('how') || lowerMessage.includes('work') || lowerMessage.includes('process') || lowerMessage.includes('step')) {
+          responseData = fallbackResponses.how;
+        } else if (lowerMessage.includes('feature') || lowerMessage.includes('include') || lowerMessage.includes('get')) {
+          responseData = fallbackResponses.features;
+        } else {
+          responseData = {
+            response: "I'm here to help! You can ask me about:\n\n• **Role Selection**: Choose between Homeowner, Contractor, Inspector, or Insurance Adjuster\n• **Pricing Plans**: See our monthly and yearly subscription options\n• **How It Works**: Learn about our estimation process\n• **Features**: Discover what each role includes\n\nWhat would you like to know?",
+            suggestions: [
+              "Help me choose a role",
+              "Tell me about pricing",
+              "How does it work?",
+              "What features do I get?"
+            ]
+          };
+        }
+
+        return res.json({
+          response: responseData.response,
+          action: null,
+          role: null,
+          suggestions: responseData.suggestions
+        });
+      }
+
+      // Import Gemini API
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      // Build conversation context
+      const systemPrompt = `You are FlacronBuild's AI assistant, a helpful and knowledgeable guide for our roofing estimation platform. 
+
+Your role is to help users with:
+
+1. **Role Selection**: Help users choose between Homeowner, Contractor, Inspector, and Insurance Adjuster roles
+2. **Pricing Information**: Explain our subscription plans and pricing
+3. **Feature Guidance**: Explain what features each role gets
+4. **Step-by-step Help**: Guide users through the estimation process
+5. **General Support**: Answer questions about the platform
+
+**Current Pricing:**
+- 🏠 Homeowner: $19.99/month (Basic estimator, simplified interface)
+- 🧱 Contractor: $97.99/month or $999.99/year (Full features, detailed reports)
+- 🧑‍💼 Inspector: $97.99/month or $999.99/year (Inspection tools, certification)
+- 💼 Insurance Adjuster: $97.99/month or $999.99/year (Claim analysis, coverage tools)
+
+**Role Features:**
+- **Homeowner**: Basic estimator, budget planning, simplified interface
+- **Contractor**: Full estimator, detailed breakdowns, bid-ready reports, editable line items
+- **Inspector**: Slope-by-slope damage input, component condition checklist, certification
+- **Insurance Adjuster**: Damage cause classification, coverage tables, claim metadata
+
+**Response Formatting Guidelines:**
+- Use bullet points (•) for lists
+- Use emojis for visual appeal
+- Structure responses with clear sections
+- Keep responses concise but informative
+- DO NOT use markdown syntax like ** or * in your responses
+- Write naturally without formatting symbols
+
+**Suggestion Button Guidelines:**
+- Make suggestions specific and actionable
+- Use "Yes/No" format when appropriate
+- Include clear action words
+- Keep suggestions short and clear
+- Examples: "Yes, I want to see pricing", "No, tell me about features", "I want to be a Contractor"
+
+**Available Actions:**
+- select_role: When user wants to choose a role, respond with action: "select_role" and role: "homeowner|contractor|inspector|insurance-adjuster"
+- navigate_pricing: When user asks about pricing, respond with action: "navigate_pricing"
+- navigate_support: When user needs support, respond with action: "navigate_support"
+
+Be friendly, helpful, and concise. Provide relevant suggestions for follow-up questions. Write responses naturally without markdown formatting.`;
+
+      // Build conversation history
+      const conversation = [
+        { role: "user", parts: [{ text: systemPrompt }] },
+        { role: "model", parts: [{ text: "I understand. I'm ready to help users with role selection, pricing, features, and step-by-step guidance for FlacronBuild." }] }
+      ];
+
+      // Add conversation history
+      if (conversationHistory && conversationHistory.length > 0) {
+        conversationHistory.forEach((msg: any) => {
+          conversation.push({
+            role: msg.role,
+            parts: [{ text: msg.content }]
+          });
+        });
+      }
+
+      // Add current message
+      conversation.push({
+        role: "user",
+        parts: [{ text: message }]
+      });
+
+      // Generate response
+      const result = await model.generateContent({
+        contents: conversation,
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        },
+      });
+
+      const response = result.response.text();
+
+      // Parse response for actions
+      let action = null;
+      let role = null;
+      let suggestions = [];
+
+      // Check for role selection
+      if (response.includes('action: "select_role"')) {
+        action = 'select_role';
+        const roleMatch = response.match(/role: "([^"]+)"/);
+        if (roleMatch) {
+          role = roleMatch[1];
+        }
+      } else if (response.includes('action: "navigate_pricing"')) {
+        action = 'navigate_pricing';
+      } else if (response.includes('action: "navigate_support"')) {
+        action = 'navigate_support';
+      }
+
+      // Generate suggestions based on context
+      if (response.toLowerCase().includes('role') || response.toLowerCase().includes('choose')) {
+        suggestions = [
+          "I want to be a Homeowner",
+          "I want to be a Contractor", 
+          "I want to be an Inspector",
+          "I want to be an Insurance Adjuster"
+        ];
+      } else if (response.toLowerCase().includes('pricing') || response.toLowerCase().includes('cost')) {
+        suggestions = [
+          "Yes, I want to see pricing details",
+          "No, tell me about features instead",
+          "Can I change plans later?",
+          "Is there a free trial?"
+        ];
+      } else if (response.toLowerCase().includes('how') || response.toLowerCase().includes('work')) {
+        suggestions = [
+          "Yes, I need a step-by-step guide",
+          "No, tell me what information I need",
+          "How accurate are the estimates?",
+          "Can I save my projects?"
+        ];
+      } else if (response.toLowerCase().includes('certification') || response.toLowerCase().includes('certified')) {
+        suggestions = [
+          "Yes, I need certification",
+          "No, I don't need certification",
+          "Tell me about training",
+          "What certifications are available?"
+        ];
+      } else if (response.toLowerCase().includes('feature') || response.toLowerCase().includes('include')) {
+        suggestions = [
+          "Yes, I need detailed features",
+          "No, tell me about pricing instead",
+          "How do I get started?",
+          "Contact support"
+        ];
+      } else {
+        suggestions = [
+          "Help me choose a role",
+          "Tell me about pricing",
+          "How does it work?",
+          "What features do I get?"
+        ];
+      }
+
+      // Clean response (remove action markers and markdown syntax)
+      const cleanResponse = response
+        .replace(/action: "[^"]*"/g, '')
+        .replace(/role: "[^"]*"/g, '')
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
+        .replace(/\*(.*?)\*/g, '$1') // Remove italic markdown
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+
+      res.json({
+        response: cleanResponse,
+        action,
+        role,
+        suggestions
+      });
+
+    } catch (error) {
+      console.error("Chatbot error:", error);
+      res.status(500).json({ 
+        message: "Failed to generate response",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Create Stripe checkout session
+  app.post("/api/create-checkout-session", async (req, res) => {
+    try {
+      const { role, billingPeriod, customerEmail, customerName } = req.body;
+
+      // Validate the request
+      if (!role || !billingPeriod || !customerEmail) {
+        return res.status(400).json({ 
+          message: "Missing required fields: role, billingPeriod, customerEmail" 
+        });
+      }
+
+      // Validate role
+      if (!rolePricing[role as keyof typeof rolePricing]) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      // Validate billing period
+      if (billingPeriod !== "monthly" && billingPeriod !== "yearly") {
+        return res.status(400).json({ message: "Invalid billing period" });
+      }
+
+      // Check if yearly billing is available for this role
+      if (billingPeriod === "yearly" && !rolePricing[role as keyof typeof rolePricing].yearly) {
+        return res.status(400).json({ message: "Yearly billing not available for this role" });
+      }
+
+      // Get the price for the selected role and billing period
+      const price = billingPeriod === "monthly" 
+        ? rolePricing[role as keyof typeof rolePricing].monthly
+        : rolePricing[role as keyof typeof rolePricing].yearly;
+
+      if (!price) {
+        return res.status(400).json({ message: "Invalid pricing configuration" });
+      }
+
+      // Create Stripe checkout session with dynamic pricing
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: roleNames[role as keyof typeof roleNames],
+                description: `${roleNames[role as keyof typeof roleNames]} - ${billingPeriod === "monthly" ? "Monthly" : "Yearly"} billing`,
+              },
+              recurring: {
+                interval: billingPeriod === "monthly" ? "month" : "year",
+              },
+              unit_amount: price,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "subscription",
+        success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin}/cancel`,
+        customer_email: customerEmail,
+        metadata: {
+          role: role,
+          billingPeriod: billingPeriod,
+          customerName: customerName || "",
+        },
+        subscription_data: {
+          metadata: {
+            role: role,
+            billingPeriod: billingPeriod,
+            customerName: customerName || "",
+          },
+        },
+      });
+
+      res.json({ sessionId: session.id, url: session.url });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      console.error("Stripe key status:", process.env.STRIPE_SECRET_KEY ? "Present" : "Missing");
+      res.status(500).json({ 
+        message: "Failed to create checkout session",
+        error: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
