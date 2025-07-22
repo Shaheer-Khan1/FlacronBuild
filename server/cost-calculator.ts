@@ -51,257 +51,353 @@ export interface ProjectRequirements {
   [key: string]: any;
 }
 
+interface GeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}
+
 // Real-time data sources for construction costs
 export class RealCostCalculator {
   private geminiApiKey: string;
 
   constructor() {
     this.geminiApiKey = process.env.GEMINI_KEY || '';
-    console.log('Gemini Key:', this.geminiApiKey ? this.geminiApiKey.slice(0, 8) + '...' : 'NOT SET');
+    if (!this.geminiApiKey) {
+      console.error('⚠️ CRITICAL: Gemini API key is not set. Set GEMINI_KEY in environment variables.');
+    } else {
+      console.log('✅ Gemini API key found:', this.geminiApiKey.slice(0, 8) + '...');
+    }
   }
 
-  async calculateRealCost(project: ProjectRequirements, imageUrls?: string[]): Promise<{
-    totalCost: number;
-    materialsCost: number;
-    laborCost: number;
-    permitsCost: number;
-    contingencyCost: number;
-    regionMultiplier: number;
-    breakdown: any;
-    dataSource: string;
-    timeline: string;
-    contingencySuggestions: string;
-    report?: string;
-    projectAnalysis?: string;
-    marketConditions?: string;
-    riskAssessment?: string;
-    timelineScheduling?: string;
-    recommendations?: string;
-    imageAnalysis?: string[];
-  }> {
-    console.log('=== COST CALCULATOR: Received Project Data ===');
-    console.log('Project object keys:', Object.keys(project));
-    console.log('Project object size:', JSON.stringify(project).length, 'characters');
-    
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Extract userRole from project data
-    const userRole = project.userRole || project.role || 'homeowner';
-    console.log('=== COST CALCULATOR: Role Analysis ===');
-    console.log('Extracted userRole:', userRole);
-    console.log('project.userRole:', project.userRole);
-    console.log('project.role:', project.role);
-    
-    // Debug all form data organized by role
-    console.log('=== COST CALCULATOR: Form Data Verification ===');
-    
-    console.log('=== SHARED FIELDS ===');
-    console.log('location:', project.location);
-    console.log('structureType:', project.structureType);
-    console.log('roofPitch:', project.roofPitch);
-    console.log('roofAge:', project.roofAge);
-    console.log('area:', project.area);
-    console.log('materialTier:', project.materialTier);
-    console.log('materialLayers:', project.materialLayers);
-    console.log('iceWaterShield:', project.iceWaterShield);
-    console.log('felt:', project.felt);
-    console.log('dripEdge:', project.dripEdge);
-    console.log('gutterApron:', project.gutterApron);
-    console.log('pipeBoots:', project.pipeBoots);
-    console.log('fascia:', project.fascia);
-    console.log('gutter:', project.gutter);
-    
-    console.log('=== INSPECTOR FIELDS ===');
-    console.log('inspectorInfo:', project.inspectorInfo);
-    console.log('inspectionDate:', project.inspectionDate);
-    console.log('weatherConditions:', project.weatherConditions);
-    console.log('accessTools:', project.accessTools);
-    console.log('slopeDamage:', project.slopeDamage);
-    console.log('ownerNotes:', project.ownerNotes);
-    
-    console.log('=== INSURER FIELDS ===');
-    console.log('claimNumber:', project.claimNumber);
-    console.log('policyholderName:', project.policyholderName);
-    console.log('adjusterName:', project.adjusterName);
-    console.log('adjusterContact:', project.adjusterContact);
-    console.log('dateOfLoss:', project.dateOfLoss);
-    console.log('damageCause:', project.damageCause);
-    console.log('coverageMapping:', project.coverageMapping);
-    console.log('previousRepairs:', project.previousRepairs);
-    
-    console.log('=== CONTRACTOR FIELDS ===');
-    console.log('jobType:', project.jobType);
-    console.log('materialPreference:', project.materialPreference);
-    console.log('laborNeeds:', project.laborNeeds);
-    console.log('lineItems:', project.lineItems);
-    console.log('localPermit:', project.localPermit);
-    
-    console.log('=== HOMEOWNER FIELDS ===');
-    console.log('homeownerInfo:', project.homeownerInfo);
-    console.log('urgency:', project.urgency);
-    console.log('budgetStyle:', project.budgetStyle);
-    console.log('preferredLanguage:', project.preferredLanguage);
-    console.log('preferredCurrency:', project.preferredCurrency);
-    
-    console.log('=== COST CALCULATOR: Image Processing ===');
-    console.log('Images received:', imageUrls ? imageUrls.length : 0);
-    if (imageUrls && imageUrls.length > 0) {
-      imageUrls.forEach((img, i) => {
-        console.log(`Image ${i + 1} type:`, typeof img);
-        console.log(`Image ${i + 1} object:`, img);
-        // Check for base64 in a likely property (e.g., data, url, base64)
-        const imgObj = img as any; // Cast to any to handle object properties
-        const base64String = imgObj?.data || imgObj?.url || imgObj?.base64 || img;
-        if (typeof base64String === 'string') {
-          console.log(`Image ${i + 1} length:`, base64String.length);
-          console.log(`Image ${i + 1} is base64:`, base64String.includes('base64'));
-        } else {
-          console.log(`Image ${i + 1} does not have a string property to check.`);
-        }
-      });
-    }
-    
-    console.log('=== COST CALCULATOR: Building Prompt for Role:', userRole, '===');
-    let prompt = this.buildRolePrompt(userRole, project);
-    console.log('=== COST CALCULATOR: Generated Prompt Preview ===');
-    console.log('Prompt length:', prompt.length, 'characters');
-    console.log('Prompt starts with:', prompt.substring(0, 200), '...');
-
-    // Build Gemini parts array with text and images
-    const parts: any[] = [{ text: prompt }];
-    
-    // Process images for Gemini analysis if provided
-    if (imageUrls && imageUrls.length > 0) {
-      console.log('=== COST CALCULATOR: Adding Images to Gemini Request ===');
-      for (let i = 0; i < imageUrls.length; i++) {
-        const imageUrl = imageUrls[i];
-        // Extract base64 string from object or use directly if it's a string
-        const imgObj = imageUrl as any;
-        const base64String = imgObj?.data || imgObj?.url || imgObj?.base64 || imageUrl;
-        
-        if (typeof base64String === 'string') {
-          // Remove data:image/jpeg;base64, prefix if present
-          const base64Data = base64String.replace(/^data:image\/[a-z]+;base64,/, '');
-          parts.push({
-            inline_data: {
-              mime_type: 'image/jpeg',
-              data: base64Data
-            }
-          });
-          console.log(`Added image ${i + 1} to Gemini request (${base64Data.length} chars)`);
-        } else {
-          console.log(`Skipping image ${i + 1} - not a valid string format`);
-        }
-      }
+  async calculateRealCost(project: ProjectRequirements, imageUrls?: string[]): Promise<any> {
+    // Validate Gemini API key first
+    if (!this.geminiApiKey) {
+      throw new Error('Gemini API key is not configured. Please set GEMINI_KEY environment variable.');
     }
 
-    console.log('=== COST CALCULATOR: Calling Gemini API ===');
-    console.log('Gemini request parts count:', parts.length);
-    console.log('Gemini request text part length:', parts[0].text.length);
-    console.log('Gemini request image parts:', parts.length - 1);
+    console.log('=== COST CALCULATOR: Starting Cost Calculation ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Project data received:', {
+      type: project.type,
+      area: project.area,
+      location: project.location,
+      userRole: project.userRole || project.role,
+      hasImages: !!imageUrls?.length
+    });
 
-    const geminiResponse = await this.queryGemini(parts);
-    console.log('=== COST CALCULATOR: Gemini Response Received ===');
-    console.log('Gemini response length:', geminiResponse.length, 'characters');
-    console.log('Gemini response preview:', geminiResponse.substring(0, 500), '...');
-    
-    let reportJson;
     try {
-      // Clean up the response - remove markdown code blocks if present
-      let cleanResponse = geminiResponse.trim();
-      if (cleanResponse.startsWith('```json')) {
-        cleanResponse = cleanResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Extract userRole from project data
+      const userRole = project.userRole || project.role || 'homeowner';
+      console.log('=== COST CALCULATOR: Role Analysis ===');
+      console.log('Extracted userRole:', userRole);
+      console.log('project.userRole:', project.userRole);
+      console.log('project.role:', project.role);
+      
+      // Debug all form data organized by role
+      console.log('=== COST CALCULATOR: Form Data Verification ===');
+      
+      console.log('=== SHARED FIELDS ===');
+      console.log('location:', project.location);
+      console.log('structureType:', project.structureType);
+      console.log('roofPitch:', project.roofPitch);
+      console.log('roofAge:', project.roofAge);
+      console.log('area:', project.area);
+      console.log('materialTier:', project.materialTier);
+      console.log('materialLayers:', project.materialLayers);
+      console.log('iceWaterShield:', project.iceWaterShield);
+      console.log('felt:', project.felt);
+      console.log('dripEdge:', project.dripEdge);
+      console.log('gutterApron:', project.gutterApron);
+      console.log('pipeBoots:', project.pipeBoots);
+      console.log('fascia:', project.fascia);
+      console.log('gutter:', project.gutter);
+      
+      console.log('=== INSPECTOR FIELDS ===');
+      console.log('inspectorInfo:', project.inspectorInfo);
+      console.log('inspectionDate:', project.inspectionDate);
+      console.log('weatherConditions:', project.weatherConditions);
+      console.log('accessTools:', project.accessTools);
+      console.log('slopeDamage:', project.slopeDamage);
+      console.log('ownerNotes:', project.ownerNotes);
+      
+      console.log('=== INSURER FIELDS ===');
+      console.log('claimNumber:', project.claimNumber);
+      console.log('policyholderName:', project.policyholderName);
+      console.log('adjusterName:', project.adjusterName);
+      console.log('adjusterContact:', project.adjusterContact);
+      console.log('dateOfLoss:', project.dateOfLoss);
+      console.log('damageCause:', project.damageCause);
+      console.log('coverageMapping:', project.coverageMapping);
+      console.log('previousRepairs:', project.previousRepairs);
+      
+      console.log('=== CONTRACTOR FIELDS ===');
+      console.log('jobType:', project.jobType);
+      console.log('materialPreference:', project.materialPreference);
+      console.log('laborNeeds:', project.laborNeeds);
+      console.log('lineItems:', project.lineItems);
+      console.log('localPermit:', project.localPermit);
+      
+      console.log('=== HOMEOWNER FIELDS ===');
+      console.log('homeownerInfo:', project.homeownerInfo);
+      console.log('urgency:', project.urgency);
+      console.log('budgetStyle:', project.budgetStyle);
+      console.log('preferredLanguage:', project.preferredLanguage);
+      console.log('preferredCurrency:', project.preferredCurrency);
+      
+      console.log('=== COST CALCULATOR: Image Processing ===');
+      console.log('Images received:', imageUrls ? imageUrls.length : 0);
+      if (imageUrls && imageUrls.length > 0) {
+        imageUrls.forEach((img, i) => {
+          console.log(`Image ${i + 1} type:`, typeof img);
+          console.log(`Image ${i + 1} object:`, img);
+          // Check for base64 in a likely property (e.g., data, url, base64)
+          const imgObj = img as any; // Cast to any to handle object properties
+          const base64String = imgObj?.data || imgObj?.url || imgObj?.base64 || img;
+          if (typeof base64String === 'string') {
+            console.log(`Image ${i + 1} length:`, base64String.length);
+            console.log(`Image ${i + 1} is base64:`, base64String.includes('base64'));
+          } else {
+            console.log(`Image ${i + 1} does not have a string property to check.`);
+          }
+        });
       }
-      if (cleanResponse.startsWith('```')) {
-        cleanResponse = cleanResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      
+      console.log('=== COST CALCULATOR: Building Prompt for Role:', userRole, '===');
+      let prompt = this.buildRolePrompt(userRole, project);
+      console.log('=== COST CALCULATOR: Generated Prompt Preview ===');
+      console.log('Prompt length:', prompt.length, 'characters');
+      console.log('Prompt starts with:', prompt.substring(0, 200), '...');
+
+      // Build Gemini parts array with text and images
+      const parts: any[] = [{ text: prompt }];
+      
+      // Process images for Gemini analysis if provided
+      if (imageUrls && imageUrls.length > 0) {
+        console.log('=== COST CALCULATOR: Adding Images to Gemini Request ===');
+        for (let i = 0; i < imageUrls.length; i++) {
+          const imageUrl = imageUrls[i];
+          // Extract base64 string from object or use directly if it's a string
+          const imgObj = imageUrl as any;
+          const base64String = imgObj?.data || imgObj?.url || imgObj?.base64 || imageUrl;
+          
+          if (typeof base64String === 'string') {
+            // Remove data:image/jpeg;base64, prefix if present
+            const base64Data = base64String.replace(/^data:image\/[a-z]+;base64,/, '');
+            parts.push({
+              inline_data: {
+                mime_type: 'image/jpeg',
+                data: base64Data
+              }
+            });
+            console.log(`Added image ${i + 1} to Gemini request (${base64Data.length} chars)`);
+          } else {
+            console.log(`Skipping image ${i + 1} - not a valid string format`);
+          }
+        }
+      }
+
+      console.log('=== COST CALCULATOR: Calling Gemini API ===');
+      console.log('Request timestamp:', new Date().toISOString());
+      const startTime = Date.now();
+      
+      const geminiResponse = await this.queryGemini(parts);
+      
+      const endTime = Date.now();
+      console.log('=== COST CALCULATOR: Gemini Response Received ===');
+      console.log('Response time:', endTime - startTime, 'ms');
+      console.log('Response length:', geminiResponse.length, 'characters');
+      console.log('Gemini response preview:', geminiResponse.substring(0, 500), '...');
+      
+      let reportJson;
+      try {
+        // Clean up the response - remove markdown code blocks if present
+        let cleanResponse = geminiResponse.trim();
+        if (cleanResponse.startsWith('```json')) {
+          cleanResponse = cleanResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        }
+        if (cleanResponse.startsWith('```')) {
+          cleanResponse = cleanResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+        
+        // Fix common JSON issues from Gemini
+        // Fix unquoted number ranges like "estimatedDays": 5-8 -> "estimatedDays": "5-8"
+        cleanResponse = cleanResponse.replace(/("estimatedDays":\s*)(\d+-\d+)([,\s}])/g, '$1"$2"$3');
+        cleanResponse = cleanResponse.replace(/("totalHours":\s*)(\d+\.\d+)([,\s}])/g, '$1$2$3');
+        
+        console.log('=== COST CALCULATOR: Parsing JSON ===');
+        console.log('Cleaned response length:', cleanResponse.length);
+        console.log('Cleaned response preview:', cleanResponse.substring(0, 200), '...');
+        
+        reportJson = JSON.parse(cleanResponse);
+        console.log('=== COST CALCULATOR: JSON Parsed Successfully ===');
+        console.log('Report JSON keys:', Object.keys(reportJson));
+        console.log('Materials cost:', reportJson.materialsCost);
+        console.log('Labor cost:', reportJson.laborCost);
+        console.log('Permits cost:', reportJson.permitsCost);
+        
+      } catch (e) {
+        console.log('=== COST CALCULATOR: JSON Parse Error ===');
+        console.log('Parse error:', e);
+        console.log('Raw response causing error:', geminiResponse);
+        throw new Error("Gemini did not return valid JSON: " + geminiResponse);
       }
       
-      // Fix common JSON issues from Gemini
-      // Fix unquoted number ranges like "estimatedDays": 5-8 -> "estimatedDays": "5-8"
-      cleanResponse = cleanResponse.replace(/("estimatedDays":\s*)(\d+-\d+)([,\s}])/g, '$1"$2"$3');
-      cleanResponse = cleanResponse.replace(/("totalHours":\s*)(\d+\.\d+)([,\s}])/g, '$1$2$3');
+      // Compose the breakdown and return
+      console.log('=== COST CALCULATOR: Calculating Final Costs ===');
       
-      console.log('=== COST CALCULATOR: Parsing JSON ===');
-      console.log('Cleaned response length:', cleanResponse.length);
-      console.log('Cleaned response preview:', cleanResponse.substring(0, 200), '...');
+      // Extract costs from either direct fields or nested costEstimates structure
+      let materialsCost = reportJson.materialsCost || reportJson.costEstimates?.materials?.total || 0;
+      let laborCost = reportJson.laborCost || reportJson.costEstimates?.labor?.total || 0;
+      let permitsCost = reportJson.permitsCost || 0;
+      let equipmentCost = reportJson.costEstimates?.equipment?.total || 0;
       
-      reportJson = JSON.parse(cleanResponse);
-      console.log('=== COST CALCULATOR: JSON Parsed Successfully ===');
-      console.log('Report JSON keys:', Object.keys(reportJson));
-      console.log('Materials cost:', reportJson.materialsCost);
-      console.log('Labor cost:', reportJson.laborCost);
-      console.log('Permits cost:', reportJson.permitsCost);
+      const baseCost = materialsCost + laborCost + permitsCost + equipmentCost;
+      let contingencyCost = reportJson.contingencyCost;
+      if (!contingencyCost || contingencyCost === 0) {
+        contingencyCost = Math.round(baseCost * 0.07);
+      }
+      const totalCost = baseCost + contingencyCost;
       
-    } catch (e) {
-      console.log('=== COST CALCULATOR: JSON Parse Error ===');
-      console.log('Parse error:', e);
-      console.log('Raw response causing error:', geminiResponse);
-      throw new Error("Gemini did not return valid JSON: " + geminiResponse);
+      console.log('Base cost:', baseCost);
+      console.log('Contingency cost:', contingencyCost);
+      console.log('Total cost:', totalCost);
+      
+      const finalResult = {
+        totalCost,
+        materialsCost,
+        laborCost,
+        permitsCost,
+        contingencyCost,
+        regionMultiplier: 1.0, // Not used with Gemini
+        breakdown: reportJson.breakdown || reportJson,
+        dataSource: 'Gemini API',
+        timeline: reportJson.timeline || reportJson.laborRequirements?.estimatedDays || 'Not specified',
+        contingencySuggestions: reportJson.contingencySuggestions || 'Standard 7% contingency applied',
+        report: reportJson,
+        imageAnalysis: reportJson.imageAnalysis || imageUrls
+      };
+      
+      console.log('=== COST CALCULATOR: Final Result ===');
+      console.log('Final result keys:', Object.keys(finalResult));
+      console.log('Final result size:', JSON.stringify(finalResult).length, 'characters');
+      
+      return finalResult;
+    } catch (error) {
+      console.error('=== COST CALCULATOR: Error ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      // Provide more helpful error messages
+      if (error.message.includes('429')) {
+        throw new Error('Rate limit exceeded. Please try again in a few minutes.');
+      } else if (error.message.includes('401') || error.message.includes('403')) {
+        throw new Error('Invalid Gemini API key. Please check your configuration.');
+      } else if (error.message.includes('Failed to fetch')) {
+        throw new Error('Network error while contacting Gemini API. Please check your internet connection.');
+      } else {
+        throw new Error(`Failed to generate estimate: ${error.message}`);
+      }
     }
-    
-    // Compose the breakdown and return
-    console.log('=== COST CALCULATOR: Calculating Final Costs ===');
-    
-    // Extract costs from either direct fields or nested costEstimates structure
-    let materialsCost = reportJson.materialsCost || reportJson.costEstimates?.materials?.total || 0;
-    let laborCost = reportJson.laborCost || reportJson.costEstimates?.labor?.total || 0;
-    let permitsCost = reportJson.permitsCost || 0;
-    let equipmentCost = reportJson.costEstimates?.equipment?.total || 0;
-    
-    const baseCost = materialsCost + laborCost + permitsCost + equipmentCost;
-    let contingencyCost = reportJson.contingencyCost;
-    if (!contingencyCost || contingencyCost === 0) {
-      contingencyCost = Math.round(baseCost * 0.07);
-    }
-    const totalCost = baseCost + contingencyCost;
-    
-    console.log('Base cost:', baseCost);
-    console.log('Contingency cost:', contingencyCost);
-    console.log('Total cost:', totalCost);
-    
-    const finalResult = {
-      totalCost,
-      materialsCost,
-      laborCost,
-      permitsCost,
-      contingencyCost,
-      regionMultiplier: 1.0, // Not used with Gemini
-      breakdown: reportJson.breakdown || reportJson,
-      dataSource: 'Gemini API',
-      timeline: reportJson.timeline || reportJson.laborRequirements?.estimatedDays || 'Not specified',
-      contingencySuggestions: reportJson.contingencySuggestions || 'Standard 7% contingency applied',
-      report: reportJson,
-      imageAnalysis: reportJson.imageAnalysis || imageUrls
-    };
-    
-    console.log('=== COST CALCULATOR: Final Result ===');
-    console.log('Final result keys:', Object.keys(finalResult));
-    console.log('Final result size:', JSON.stringify(finalResult).length, 'characters');
-    
-    return finalResult;
   }
 
   private async queryGemini(parts: any[]): Promise<string> {
+    if (!this.geminiApiKey) {
+      throw new Error('Gemini API key is not configured');
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.geminiApiKey}`;
-    const body = {
-      contents: [
-        {
-          parts
-        }
-      ]
+    
+    console.log('\n=== GEMINI API: Request Details ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Request parts count:', parts.length);
+    console.log('\n=== Text Content ===');
+    console.log(parts[0].text);
+    
+    if (parts.length > 1) {
+      console.log('\n=== Image Data ===');
+      for (let i = 1; i < parts.length; i++) {
+        console.log(`Image ${i}:`, {
+          type: parts[i].inline_data.mime_type,
+          size: parts[i].inline_data.data.length + ' chars'
+        });
+      }
+    }
+
+    const requestBody = {
+      contents: [{ parts }]
     };
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch from Gemini API');
+
+    console.log('\n=== Request Structure ===');
+    console.log(JSON.stringify(requestBody, (key, value) => {
+      // Don't show the actual image data in logs
+      if (key === 'data' && typeof value === 'string' && value.length > 100) {
+        return value.substring(0, 100) + '... [truncated]';
+      }
+      return value;
+    }, 2));
+    
+    try {
+      console.log('\n=== Making API Request ===');
+      const startTime = Date.now();
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      const endTime = Date.now();
+      console.log('\n=== API Response ===');
+      console.log('Response time:', endTime - startTime, 'ms');
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Gemini API error response:', errorText);
+        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json() as GeminiResponse;
+      console.log('\n=== Response Data ===');
+      if (typeof data === 'object' && data !== null) {
+        console.log('Response structure:', Object.keys(data));
+      }
+      
+      if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        console.error('Unexpected Gemini response structure:', JSON.stringify(data, null, 2));
+        throw new Error('Invalid response format from Gemini API');
+      }
+
+      const responseText = data.candidates[0].content.parts[0].text;
+      console.log('\n=== Response Text Preview ===');
+      console.log(responseText.substring(0, 500) + '...');
+
+      return responseText;
+    } catch (error: unknown) {
+      console.error('\n=== GEMINI API: Request Failed ===');
+      if (error instanceof Error) {
+        console.error('Error type:', error.constructor.name);
+        console.error('Error message:', error.message);
+        if (error.message.includes('429')) {
+          throw new Error('Rate limit exceeded. Please try again in a few minutes.');
+        } else if (error.message.includes('401') || error.message.includes('403')) {
+          throw new Error('Invalid Gemini API key. Please check your configuration.');
+        } else if (error.message.includes('Failed to fetch')) {
+          throw new Error('Network error while contacting Gemini API. Please check your internet connection.');
+        }
+      }
+      throw new Error('Failed to process Gemini API request');
     }
-    const data: any = await response.json();
-    // Gemini returns the text in data.candidates[0].content.parts[0].text
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    }
+  }
 
   private parseGeminiResponse(response: string) {
     // Parse the Gemini response for the required fields

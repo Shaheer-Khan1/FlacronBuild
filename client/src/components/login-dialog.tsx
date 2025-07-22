@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, Star, Shield, Users, User, HardHat, ClipboardCheck, Shield as ShieldIcon } from "lucide-react";
+import { Check as CheckIcon } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { GoogleMap, Marker, useLoadScript } from '@react-google-maps/api';
@@ -161,9 +162,40 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
     setError(null);
     setLoading(true);
     try {
-      await signInWithPopup(auth, provider);
-      onOpenChange(false);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      // Check if the user is new by looking at metadata
+      const isNewUser = user.metadata.creationTime === user.metadata.lastSignInTime;
+      
+      console.log('=== GOOGLE AUTH ===');
+      console.log('User Status:', isNewUser ? 'NEW USER' : 'EXISTING USER');
+      console.log('Email:', user.email);
+      console.log('Display Name:', user.displayName);
+      console.log('Creation Time:', user.metadata.creationTime);
+      console.log('Last Sign In:', user.metadata.lastSignInTime);
+      
+      if (isNewUser) {
+        console.log('Setting up new user flow...');
+        // For new users, show role selection immediately
+        setIsSignup(true);
+        setEmail(user.email || '');
+        if (user.displayName) {
+          setFullName(user.displayName);
+        }
+        // Skip to plan selection step
+        setSignupStep(2);
+        console.log('New user setup complete - dialog should stay open');
+        // Keep dialog open for plan selection - DO NOT call onOpenChange(false)
+        // The dialog will stay open and show the role selection
+      } else {
+        console.log('Existing user - closing dialog');
+        // Existing user, just close the dialog
+        onOpenChange(false);
+      }
     } catch (e: any) {
+      console.error('=== GOOGLE AUTH ERROR ===');
+      console.error('Error:', e.message);
       setError(e.message);
     } finally {
       setLoading(false);
@@ -227,8 +259,20 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
     setLoading(true);
     setError(null);
     try {
-      // Create the user account first
-      await createUserWithEmailAndPassword(auth, email, password);
+      // For Google users, we don't need to create account again
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        // Only create account if no user is signed in (email signup flow)
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      
+      // Save the user role immediately
+      const { userRoleManager } = await import("@/lib/user-role");
+      userRoleManager.setUserRole(selectedPlan as any);
+      
+      console.log('=== ROLE SELECTED ===');
+      console.log('Selected role:', selectedPlan);
+      console.log('User role saved to localStorage');
       
       // Create Stripe checkout session
       const response = await fetch('/api/create-checkout-session', {
@@ -250,6 +294,9 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
       }
 
       const { url } = await response.json();
+      
+      // Close the dialog before redirecting
+      onOpenChange(false);
       
       // Redirect to Stripe checkout
       if (url) {
@@ -318,8 +365,8 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
               placeholder="Full Name"
               value={fullName}
               onChange={e => setFullName(e.target.value)}
-              required={isSignup}
-              autoFocus={isSignup}
+              required
+              autoFocus
             />
             <Input
               type="email"
@@ -327,7 +374,6 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              autoFocus={!isSignup}
             />
             <Input
               type="password"
@@ -341,117 +387,143 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
               placeholder="Confirm Password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
-              required={isSignup}
+              required
             />
             {error && <div className="text-red-500 text-sm">{error}</div>}
-            <Button type="submit" disabled={loading} className="w-full">
-              Next
+            <Button type="submit" disabled={loading}>
+              Continue
             </Button>
           </form>
         );
       
       case 2:
         return (
-          <div className="space-y-3">
-            <div className="text-center mb-3">
-              <h3 className="text-sm font-medium text-gray-900">Choose Your Role & Plan</h3>
-              <p className="text-xs text-gray-600">Select your role and billing preference</p>
-            </div>
-            
-            {/* Billing Toggle for Premium Plans */}
-            <div className="flex items-center justify-center space-x-2 bg-gray-100 rounded-md p-1">
-              <button
-                type="button"
-                className={`px-3 py-1 text-xs rounded ${
-                  selectedBilling === "monthly" 
-                    ? "bg-white text-gray-900 shadow-sm" 
-                    : "text-gray-600"
+          <div className="space-y-6">
+            {/* Billing Toggle */}
+            <div className="flex justify-center items-center gap-2 p-2 bg-gray-50 rounded-full w-fit mx-auto">
+              <span 
+                className={`px-4 py-2 rounded-full cursor-pointer text-sm ${
+                  selectedBilling === 'monthly' ? 'bg-white shadow text-black' : 'text-gray-600'
                 }`}
-                onClick={() => setSelectedBilling("monthly")}
+                onClick={() => setSelectedBilling('monthly')}
               >
                 Monthly
-              </button>
-              <button
-                type="button"
-                className={`px-3 py-1 text-xs rounded ${
-                  selectedBilling === "yearly" 
-                    ? "bg-white text-gray-900 shadow-sm" 
-                    : "text-gray-600"
+              </span>
+              <span 
+                className={`px-4 py-2 rounded-full cursor-pointer text-sm ${
+                  selectedBilling === 'yearly' ? 'bg-white shadow text-black' : 'text-gray-600'
                 }`}
-                onClick={() => setSelectedBilling("yearly")}
+                onClick={() => setSelectedBilling('yearly')}
               >
-                Yearly (Save 15%)
-              </button>
+                -15% Yearly
+              </span>
             </div>
-            
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {subscriptionPlans.map((plan) => {
-                const Icon = plan.icon;
-                const isHomeowner = plan.id === "homeowner";
-                const showBillingToggle = !isHomeowner;
-                
-                return (
-                  <div 
-                    key={plan.id}
-                    className={`border rounded-md p-3 cursor-pointer transition-all ${
-                      selectedPlan === plan.id 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => setSelectedPlan(plan.id)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Icon className="h-4 w-4 text-blue-600" />
-                        <div>
-                          <div className="flex items-center space-x-1">
-                            <h4 className="text-sm font-medium text-gray-900">{plan.name}</h4>
-                            {plan.popular && (
-                              <span className="bg-blue-100 text-blue-800 text-xs px-1 py-0.5 rounded">
-                                Popular
-                              </span>
-                            )}
+
+            {/* Plan Cards - Horizontal Layout */}
+            <div className="grid grid-cols-4 gap-6">
+              {selectedBilling === 'yearly' ? (
+                <>
+                  {/* Homeowner replacement card */}
+                  <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-4 text-center min-h-[340px]">
+                    <div className="mb-2 text-gray-400">
+                      <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path stroke="#aaa" strokeWidth="2" d="M12 3v18m9-9H3"/></svg>
+                    </div>
+                    <div className="font-semibold text-gray-700 mb-2">Homeowner plan only available for Monthly billing</div>
+                    <button
+                      className="mt-2 px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition"
+                      onClick={() => setSelectedBilling('monthly')}
+                    >
+                      Switch to Monthly
+                    </button>
+                  </div>
+                  {/* Show other plans */}
+                  {subscriptionPlans.filter(plan => plan.id !== 'homeowner').map((plan) => (
+                    <div
+                      key={plan.id}
+                      className={`relative p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                        selectedPlan === plan.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setSelectedPlan(plan.id)}
+                    >
+                      {plan.popular && (
+                        <span className="absolute -top-2 -right-2 bg-primary text-white text-xs px-2 py-0.5 rounded-full">
+                          Popular
+                        </span>
+                      )}
+                      <div className="flex flex-col items-center text-center">
+                        <div className={`p-3 rounded-lg mb-2 ${selectedPlan === plan.id ? 'bg-primary/10' : 'bg-gray-100'}`}>
+                          <plan.icon className={`w-5 h-5 ${selectedPlan === plan.id ? 'text-primary' : 'text-gray-600'}`} />
+                        </div>
+                        <h4 className="font-medium text-sm mb-1 leading-tight">{plan.name}</h4>
+                        <div className="mb-2">
+                          <div className="text-lg font-bold">
+                            {plan.yearlyPrice}
                           </div>
-                          <p className="text-xs text-gray-600">{plan.description}</p>
+                          <div className="text-xs text-gray-500">/year</div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-gray-900">
-                          {getPlanPrice(plan)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          /{getPlanPeriod(plan)}
-                        </div>
+                        <ul className="space-y-1">
+                          {plan.features.map((feature, index) => (
+                            <li key={index} className="flex items-start gap-2 text-xs">
+                              <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                              <span className="leading-tight text-left">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     </div>
-                    
-                    <ul className="mt-2 space-y-1">
-                      {plan.features.map((feature, index) => (
-                        <li key={index} className="flex items-center text-xs text-gray-600">
-                          <Check className="h-3 w-3 text-green-500 mr-1 flex-shrink-0" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
+                  ))}
+                </>
+              ) : (
+                // Monthly: show all plans
+                <>
+                  {subscriptionPlans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className={`relative p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                        selectedPlan === plan.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setSelectedPlan(plan.id)}
+                    >
+                      {plan.popular && (
+                        <span className="absolute -top-2 -right-2 bg-primary text-white text-xs px-2 py-0.5 rounded-full">
+                          Popular
+                        </span>
+                      )}
+                      <div className="flex flex-col items-center text-center">
+                        <div className={`p-3 rounded-lg mb-2 ${selectedPlan === plan.id ? 'bg-primary/10' : 'bg-gray-100'}`}>
+                          <plan.icon className={`w-5 h-5 ${selectedPlan === plan.id ? 'text-primary' : 'text-gray-600'}`} />
+                        </div>
+                        <h4 className="font-medium text-sm mb-1 leading-tight">{plan.name}</h4>
+                        <div className="mb-2">
+                          <div className="text-lg font-bold">
+                            {plan.price}
+                          </div>
+                          <div className="text-xs text-gray-500">/month</div>
+                        </div>
+                        <ul className="space-y-1">
+                          {plan.features.map((feature, index) => (
+                            <li key={index} className="flex items-start gap-2 text-xs">
+                              <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                              <span className="leading-tight text-left">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
-            
-            <div className="flex space-x-2 pt-2">
-              <Button 
-                variant="outline" 
-                onClick={handlePrevStep}
-                size="sm"
-                className="flex-1"
-              >
+
+            <div className="flex justify-between gap-2 mt-6">
+              <Button variant="outline" onClick={handlePrevStep} disabled={loading} size="sm">
                 Back
               </Button>
-              <Button 
-                onClick={handleNextStep}
-                size="sm"
-                className="flex-1"
-              >
+              <Button onClick={handleNextStep} disabled={selectedBilling === 'yearly' && selectedPlan === 'homeowner' || !selectedPlan || loading} size="sm">
                 Continue
               </Button>
             </div>
@@ -822,33 +894,33 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xs w-full">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="max-w-3xl w-full px-8 py-6 overflow-hidden">
+        <DialogHeader className="space-y-1.5 pb-2">
+          <DialogTitle className="text-base font-medium text-center">
             {isSignup 
               ? signupStep === 1 
                 ? "Sign Up" 
                 : signupStep === 2 
-                  ? "Choose Your Role & Plan" 
+                  ? "Choose Plan" 
                   : signupStep === 3
-                    ? "Complete Your Profile"
-                    : "Review Subscription"
+                    ? "Your Profile"
+                    : "Review"
               : "Login"
             }
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-center text-xs text-gray-500">
             {isSignup 
               ? signupStep === 1 
                 ? "Create a new account" 
                 : signupStep === 2 
-                  ? "Select your role and billing preference" 
+                  ? "Select your role and plan" 
                   : "Review your details before starting"
               : "Sign in to your account"
             }
           </DialogDescription>
         </DialogHeader>
         
-        {message && <div className="text-center text-red-500 font-medium mb-2">{message}</div>}
+        {message && <div className="text-center text-red-500 text-xs font-medium mb-2">{message}</div>}
         
         {isSignup ? renderSignupStep() : (
         <form onSubmit={handleEmailAuth} className="flex flex-col gap-3">
@@ -874,7 +946,20 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
         </form>
         )}
         
-        {isSignup && signupStep === 1 && (
+        {!isSignup && (
+          <>
+        <div className="flex items-center my-2">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="mx-2 text-xs text-gray-400">OR</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+        <Button onClick={handleGoogle} disabled={loading} variant="outline" className="w-full">
+          Continue with Google
+        </Button>
+          </>
+        )}
+        
+        {(isSignup && signupStep === 1) && (
           <>
         <div className="flex items-center my-2">
           <div className="flex-1 h-px bg-gray-200" />
@@ -909,6 +994,47 @@ function JurisdictionMapPicker({ apiKey, value, onChange }: {
   const { isLoaded } = useLoadScript({ googleMapsApiKey: apiKey, libraries: ['places'] });
   const [marker, setMarker] = useState(value || null);
   useEffect(() => { if (value) setMarker(value); }, [value]);
+  
+  // Auto-fill jurisdiction field when marker/address changes
+  useEffect(() => {
+    if (marker && marker.address) {
+      const jurisdictionInput = document.querySelector('input[placeholder="Enter your jurisdiction/state"]') as HTMLInputElement;
+      if (jurisdictionInput && jurisdictionInput.value !== marker.address) {
+        jurisdictionInput.value = marker.address;
+        jurisdictionInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }
+  }, [marker]);
+
+  // Auto-detect user location on load if no marker is set
+  useEffect(() => {
+    if (isLoaded && !marker) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+              if (status === 'OK' && results && results[0]) {
+                const address = results[0].formatted_address;
+                setMarker({ lat, lng, address });
+                onChange({ lat, lng, address });
+              } else {
+                setMarker({ lat, lng, address: '' });
+                onChange({ lat, lng, address: '' });
+              }
+            });
+          },
+          (error) => {
+            // User denied or error, do nothing
+          },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+      }
+    }
+  }, [isLoaded, marker, onChange]);
+
   return isLoaded ? (
     <div className="my-2">
       <GoogleMap

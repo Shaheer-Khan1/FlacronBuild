@@ -34,9 +34,9 @@ export default function Dashboard() {
     console.log('Estimate generated:', estimate);
   };
 
-  const handleReportSaved = (report: any) => {
+  const handleReportSaved = () => {
     // Handle report saving
-    console.log('Report saved:', report);
+    console.log('Report saved');
   };
 
   const renderRoleBasedDashboard = () => {
@@ -69,7 +69,6 @@ export default function Dashboard() {
         {/* Role Header */}
         <div className="text-center">
           <div className="flex items-center justify-center mb-4">
-            <div className="text-4xl mr-3">{roleDisplayName.split(' ')[0]}</div>
             <h1 className="text-3xl font-bold text-gray-900">{roleDisplayName.split(' ').slice(1).join(' ')} Dashboard</h1>
           </div>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -101,64 +100,19 @@ export default function Dashboard() {
 
         {/* Estimation Form */}
         <div className="max-w-xl w-full mx-auto">
-                  <EstimationForm
-          userRole={normalizeRole(userRole)}
-          onEstimateGenerated={handleEstimateGenerated}
-          onReportSaved={handleReportSaved}
-          hasEstimate={false}
-          disableRoleSelection={true}
-          onFieldFocus={handleFieldFocus}
-        />
-        </div>
-
-        {/* Generate Report Section - Centered */}
-        <div className="max-w-xl w-full mx-auto">
-          <Card className="text-center">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-center">
-                <FileText className="mr-2 h-5 w-5 text-blue-500" />
-                Generate Report
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Generate detailed PDF reports from your estimates.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button 
-                  variant="outline"
-                  className="flex-1"
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Learn More
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <EstimationForm
+            userRole={normalizeRole(userRole)}
+            onEstimateGenerated={handleEstimateGenerated}
+            onReportSaved={handleReportSaved}
+            hasEstimate={false}
+            disableRoleSelection={true}
+            onFieldFocus={handleFieldFocus}
+          />
         </div>
 
         {/* Role-Specific Quick Actions - Centered */}
-        <div className="max-w-2xl w-full mx-auto">
+        <div className="max-w-xl w-full mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {userRole === "homeowner" && (
-              <>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 text-center">
-                    <Home className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                    <h3 className="font-semibold">Quick Estimate</h3>
-                    <p className="text-sm text-gray-600">Get a basic cost estimate</p>
-                  </CardContent>
-                </Card>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 text-center">
-                    <Hammer className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                    <h3 className="font-semibold">Budget Planning</h3>
-                    <p className="text-sm text-gray-600">Plan your roofing budget</p>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-
             {userRole === "contractor" && (
               <>
                 <Card className="cursor-pointer hover:shadow-md transition-shadow">

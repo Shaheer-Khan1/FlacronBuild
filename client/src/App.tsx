@@ -23,6 +23,17 @@ import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import Header from "@/components/header";
 import LoginDialog from "@/components/login-dialog";
 
+// CookieConsent component
+function CookieConsent() {
+  useEffect(() => {
+    if (!localStorage.getItem('cookieConsent')) {
+      window.alert('This site uses cookies to enhance your experience. By continuing, you agree to our use of cookies.');
+      localStorage.setItem('cookieConsent', 'true');
+    }
+  }, []);
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -93,18 +104,63 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
 
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setAuthChecked(true);
+      
+      // Check if this is a new user who needs role selection
+      if (firebaseUser) {
+        const isNewUser = firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime;
+        const hasRole = userRoleManager.getUserRole();
+        
+        console.log('=== APP AUTH STATE CHANGE ===');
+        console.log('User:', firebaseUser.email);
+        console.log('Is new user:', isNewUser);
+        console.log('Has role:', hasRole);
+        
+        // If user is new and doesn't have a role, they need to complete setup
+        if (isNewUser && !hasRole) {
+          console.log('New user needs role selection - keeping login dialog open');
+          setNeedsRoleSelection(true);
+          setShowLogin(true);
+        } else {
+          setNeedsRoleSelection(false);
+          setShowLogin(false);
+        }
+      } else {
+        setNeedsRoleSelection(false);
+      }
     });
     return () => unsubscribe();
   }, []);
 
   if (!authChecked) {
     return <div>Loading...</div>;
+  }
+
+  // If user exists but needs role selection, show login dialog
+  if (user && needsRoleSelection) {
+    return (
+      <>
+        <LandingPage onGetStarted={() => setShowLogin(true)} />
+        <LoginDialog 
+          open={showLogin} 
+          onOpenChange={(open) => {
+            setShowLogin(open);
+            // If dialog is closed but user still needs role selection, sign them out
+            if (!open && needsRoleSelection) {
+              console.log('User closed dialog without selecting role - signing out');
+              const auth = getAuth();
+              auth.signOut();
+            }
+          }} 
+        />
+      </>
+    );
   }
 
   if (!user) {
@@ -116,7 +172,7 @@ function App() {
     );
   }
 
-  // Existing app content for logged-in users
+  // Existing app content for logged-in users with complete profiles
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -124,6 +180,7 @@ function App() {
           <Toaster />
           <Router />
           <Chatbot />
+          <CookieConsent />
         </div>
         <Footer />
       </TooltipProvider>

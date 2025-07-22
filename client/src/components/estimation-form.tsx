@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { ArrowLeft, ArrowRight, Save, Upload, Home, Building, Wrench, ClipboardCheck, Shield, HardHat, User, MapPin, Info, Brain, Zap, CheckCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, Upload, Home, Building, Wrench, ClipboardCheck, Shield, HardHat, User, MapPin, Info, Brain, Zap, CheckCircle, Loader2, X } from "lucide-react";
 import { db, auth } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import LoginDialog from "./login-dialog";
@@ -268,11 +268,11 @@ const currencyOptions = [
 ];
 
 interface EstimationFormProps {
-  userRole: UserRole;
-  onEstimateGenerated?: (estimate: Estimate) => void;
-  onReportSaved?: (report: Report) => void;
+  userRole?: string;
+  onEstimateGenerated?: (estimate: any) => void;
+  onReportSaved?: () => void;
   disableRoleSelection?: boolean;
-  onFieldFocus?: (fieldName: string) => void;
+  onFieldFocus?: (field: string) => void;
   hasEstimate?: boolean;
 }
 
@@ -523,13 +523,18 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
         return hasPremium ? 'premium' : 'standard';
       };
       
+      // Ensure location is properly formatted
+      const location = data.location 
+        ? `${data.location.city || ''}, ${data.location.country || ''} ${data.location.zipCode || ''}`.trim()
+        : 'Location not specified';
+
       // Transform the complex form data to simple database schema
       const projectData = {
-        name: data.name,
-        type: data.projectType,
-        location: `${data.location.city}, ${data.location.country} ${data.location.zipCode}`,
-        area: estimatedArea,
-        unit: "sqft",
+        name: data.name || 'Untitled Project', // Ensure name is never null
+        type: data.projectType || 'residential', // Ensure type is never null
+        location: location, // Location is now guaranteed to be a string
+        area: estimatedArea, // Area is guaranteed to be a number
+        unit: "sqft", // Default unit
         materialTier: getMaterialTier(data.materialLayers || []),
         timeline: data.urgency || "standard",
         status: "draft",
@@ -541,6 +546,12 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
       console.log('Transformed project data being sent to backend:', projectData);
       console.log('Original form data userRole:', data.userRole);
       console.log('JSON.stringify of uploadedFiles:', JSON.stringify(projectData.uploadedFiles));
+
+      // Validate required fields before sending
+      if (!projectData.name || !projectData.type || !projectData.location || !projectData.area) {
+        throw new Error('Missing required fields');
+      }
+
       const response = await apiRequest("POST", "/api/projects", projectData);
       return response.json();
     },
@@ -551,7 +562,6 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
       console.log('Uploaded files for estimate:', uploadedFiles);
       
       setSavedProjectId(project.id);
-      onProjectUpdate(project);
       
       // Generate estimate after project is created (files will be passed separately)
       generateEstimateMutation.mutate({ projectId: project.id, files: uploadedFiles });
@@ -561,11 +571,12 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
         description: "Your project has been saved successfully.",
       });
     },
-    onError: () => {
+    onError: (error) => {
       setIsEstimating(false);
+      console.error('Project creation error:', error);
       toast({
         title: "Error",
-        description: "Failed to save project. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save project. Please try again.",
         variant: "destructive",
       });
     },
@@ -585,8 +596,8 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
       
       // Transform the complex form data to simple database schema
       const projectData = {
-        name: data.name,
-        type: data.projectType,
+        name: data.name || 'Untitled Project',
+        type: data.projectType || 'residential',
         location: `${data.location.city}, ${data.location.country} ${data.location.zipCode}`,
         area: estimatedArea,
         unit: "sqft",
@@ -601,11 +612,28 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
       console.log('Transformed project data being sent to backend:', projectData);
       console.log('Original form data userRole:', data.userRole);
       console.log('JSON.stringify of uploadedFiles:', JSON.stringify(projectData.uploadedFiles));
+
+      // Validate required fields before sending
+      if (!projectData.name || !projectData.type || !projectData.location || !projectData.area) {
+        throw new Error('Missing required fields');
+      }
+
       const response = await apiRequest("PATCH", `/api/projects/${savedProjectId}`, projectData);
       return response.json();
     },
     onSuccess: (project) => {
-      onProjectUpdate(project);
+      toast({
+        title: "Project updated",
+        description: "Your project has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      console.error('Project update error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update project. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -618,12 +646,17 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
       return response.json();
     },
     onSuccess: async (estimate) => {
-      console.log('Gemini estimate response:', estimate);
-      onEstimateUpdate(estimate);
+      console.log('=== FRONTEND: Estimate Generated Successfully ===');
+      console.log('Estimate data:', estimate);
+      
+      if (onEstimateGenerated) {
+        onEstimateGenerated(estimate);
+      }
       
       // Save to Firestore
       try {
         await addEstimateToFirestore(estimate, form.getValues());
+        console.log('✅ Estimate saved to Firestore');
       } catch (e) {
         console.error('Failed to save estimate to Firestore', e);
       }
@@ -667,30 +700,44 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
           pdfDocId = pdfDocRef.id;
           // Save report to Firestore (input, Gemini JSON, PDF ref)
           await saveReportToFirestore(projectData, estimate, pdfDocId);
+
+          if (onReportSaved) {
+            onReportSaved();
+          }
+          console.log('✅ PDF saved to Firestore');
         }
         
         // Clear localStorage after successful PDF storage
         localStorage.removeItem("estimation-upload");
         console.log('✅ PDF generation, storage, and report record completed');
-      } catch (error) {
-        console.error('❌ Failed to generate or save PDF:', error);
+
+        // Show success message
         toast({
-          title: "PDF Generation Failed",
-          description: "The estimate was created but PDF generation failed.",
+          title: "Estimate Generated",
+          description: "Your estimate and PDF report are ready.",
+        });
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to generate PDF report. Please try again.",
           variant: "destructive",
         });
+      } finally {
+        // Always clear the loading state
+        setIsEstimating(false);
       }
-      
-      setIsEstimating(false);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('=== FRONTEND: Estimate Generation Error ===');
+      console.error('Error:', error);
       setIsEstimating(false);
       toast({
         title: "Error",
         description: "Failed to generate estimate. Please try again.",
         variant: "destructive",
       });
-    },
+    }
   });
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -841,6 +888,182 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
       onFieldFocus(fieldName);
     }
   };
+
+  const updateMapFromAddress = async (address: string) => {
+    if (!address) return;
+    
+    const geocoder = new window.google.maps.Geocoder();
+    try {
+      const results = await new Promise<google.maps.GeocoderResult[]>((resolve, reject) => {
+        geocoder.geocode({ address }, (results, status) => {
+          if (status === 'OK' && results) {
+            resolve(results);
+          } else {
+            reject(status);
+          }
+        });
+      });
+
+      if (results[0]) {
+        const location = results[0].geometry.location;
+        const lat = location.lat();
+        const lng = location.lng();
+        const address = results[0].formatted_address;
+        
+        setJurisdictionLocation({ lat, lng, address });
+        form.setValue('jurisdictionLocation', { lat, lng, address });
+
+        // Parse address components
+        const components = results[0].address_components;
+        let city = '', country = '', zip = '';
+        components.forEach((comp: any) => {
+          if (comp.types.includes('locality')) city = comp.long_name;
+          if (!city && comp.types.includes('administrative_area_level_2')) city = comp.long_name;
+          if (!city && comp.types.includes('sublocality')) city = comp.long_name;
+          if (comp.types.includes('country')) country = comp.long_name;
+          if (comp.types.includes('postal_code')) zip = comp.long_name;
+        });
+
+        // Only update fields that weren't the source of this update
+        const sourceField = form.getValues();
+        if (!sourceField.location?.city && city) {
+          form.setValue('location.city', city, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+        }
+        if (!sourceField.location?.country && country) {
+          form.setValue('location.country', country, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+        }
+        if (!sourceField.location?.zipCode && zip) {
+          form.setValue('location.zipCode', zip, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+        }
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
+  };
+
+  // Watch location fields for changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (!name) return;
+
+      // Only proceed if it's a location field change
+      if (!name.startsWith('location.')) return;
+
+      const location = form.getValues('location');
+      if (!location) return;
+
+      // Build address string based on available fields
+      const addressParts = [];
+      if (location.city) addressParts.push(location.city);
+      if (location.country) addressParts.push(location.country);
+      if (location.zipCode) addressParts.push(location.zipCode);
+
+      // Only geocode if we have enough information
+      if (addressParts.length > 0) {
+        updateMapFromAddress(addressParts.join(', '));
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  const detectUserLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation not supported",
+        description: "Your browser doesn't support location detection. Please enter your location manually.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!isLoaded) {
+      toast({
+        title: "Map not ready",
+        description: "Please wait for the map to load and try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude: lat, longitude: lng } = position.coords;
+        
+        try {
+          const geocoder = new google.maps.Geocoder();
+          const results = await new Promise<google.maps.GeocoderResult[]>((resolve, reject) => {
+            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+              if (status === 'OK' && results) {
+                resolve(results);
+              } else {
+                reject(status);
+              }
+            });
+          });
+
+          if (results[0]) {
+            const address = results[0].formatted_address;
+            setJurisdictionLocation({ lat, lng, address });
+            form.setValue('jurisdictionLocation', { lat, lng, address });
+
+            // Parse address components
+            const components = results[0].address_components;
+            let city = '', country = '', zip = '';
+            components.forEach((comp: any) => {
+              if (comp.types.includes('locality')) city = comp.long_name;
+              if (!city && comp.types.includes('administrative_area_level_2')) city = comp.long_name;
+              if (!city && comp.types.includes('sublocality')) city = comp.long_name;
+              if (comp.types.includes('country')) country = comp.long_name;
+              if (comp.types.includes('postal_code')) zip = comp.long_name;
+            });
+
+            // Update form fields
+            if (city) form.setValue('location.city', city, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+            if (country) form.setValue('location.country', country, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+            if (zip) form.setValue('location.zipCode', zip, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+
+            toast({
+              title: "Location detected",
+              description: "Your location has been automatically filled in.",
+              variant: "default"
+            });
+          }
+        } catch (error) {
+          console.error('Geocoding error:', error);
+          toast({
+            title: "Location detection failed",
+            description: "Could not determine your exact location. Please enter it manually.",
+            variant: "destructive"
+          });
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        let message = "Please enter your location manually.";
+        if (error.code === 1) {
+          message = "Location access was denied. Please enter your location manually or allow location access and try again.";
+        }
+        toast({
+          title: "Location detection failed",
+          description: message,
+          variant: "destructive"
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  // Try to detect location when component mounts and map is loaded
+  useEffect(() => {
+    if (!jurisdictionLocation && isLoaded) {
+      detectUserLocation();
+    }
+  }, [isLoaded]);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -1015,7 +1238,19 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                     )}
                 </div>
                 <div className="mt-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Location (Map)</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Location (Map)</label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={detectUserLocation}
+                    >
+                      <MapPin className="h-3 w-3 mr-1" />
+                      Detect My Location
+                    </Button>
+                  </div>
                   {isLoaded ? (
                     <GoogleMap
                       mapContainerStyle={{ width: '100%', height: '300px' }}
@@ -1024,15 +1259,15 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                       onClick={async (e) => {
                         const lat = e.latLng?.lat();
                         const lng = e.latLng?.lng();
-                        let address = '';
                         if (lat && lng) {
                           const geocoder = new window.google.maps.Geocoder();
                           geocoder.geocode({ location: { lat, lng } }, (results, status) => {
                             if (status === 'OK' && results && results[0]) {
-                              address = results[0].formatted_address;
+                              const address = results[0].formatted_address;
                               setJurisdictionLocation({ lat, lng, address });
                               form.setValue('jurisdictionLocation', { lat, lng, address });
-                              // Try to parse city, country, zip from address components
+
+                              // Parse address components
                               const components = results[0].address_components;
                               let city = '', country = '', zip = '';
                               components.forEach((comp: any) => {
@@ -1042,21 +1277,10 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                                 if (comp.types.includes('country')) country = comp.long_name;
                                 if (comp.types.includes('postal_code')) zip = comp.long_name;
                               });
-                              if (city) {
-                                form.setValue('location.city', city, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-                                console.log('Set city:', city);
-                              }
-                              if (country) {
-                                form.setValue('location.country', country, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-                                console.log('Set country:', country);
-                              }
-                              if (zip) {
-                                form.setValue('location.zipCode', zip, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-                                console.log('Set zip:', zip);
-                              }
-                            } else {
-                              setJurisdictionLocation({ lat, lng, address: '' });
-                              form.setValue('jurisdictionLocation', { lat, lng, address: '' });
+
+                              if (city) form.setValue('location.city', city, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+                              if (country) form.setValue('location.country', country, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+                              if (zip) form.setValue('location.zipCode', zip, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
                             }
                           });
                         }
@@ -1088,15 +1312,19 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                   render={({ field }) => (
                     <FormItem>
                           <FormLabel>Structure Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('structureType')}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select structure type" />
-                              </SelectTrigger>
-                            </FormControl>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={isEstimating}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select structure type" />
+                            </SelectTrigger>
                             <SelectContent>
                               {structureTypes.map((type) => (
-                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1111,15 +1339,19 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Roof Pitch</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('roofPitch')}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select roof pitch" />
-                              </SelectTrigger>
-                            </FormControl>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={isEstimating}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select roof pitch" />
+                            </SelectTrigger>
                             <SelectContent>
                               {roofPitches.map((pitch) => (
-                                <SelectItem key={pitch} value={pitch}>{pitch}</SelectItem>
+                                <SelectItem key={pitch} value={pitch}>
+                                  {pitch}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1164,34 +1396,51 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                      render={({ field }) => (
                        <FormItem>
                          <FormLabel>Material Layers (Bottom to Top)</FormLabel>
-                         <Select onValueChange={(value) => field.onChange([...field.value, value])} onFocus={() => handleFieldFocus('materialLayers')}>
-                           <FormControl>
+                         <div className="space-y-2">
+                           <Select
+                             onValueChange={(value) => {
+                               if (!field.value) field.onChange([value]);
+                               else if (!field.value.includes(value)) {
+                                 field.onChange([...field.value, value]);
+                               }
+                             }}
+                             disabled={isEstimating}
+                           >
                              <SelectTrigger>
                                <SelectValue placeholder="Add material layer" />
                              </SelectTrigger>
-                           </FormControl>
-                           <SelectContent>
-                             {materialOptions.map((material) => (
-                               <SelectItem key={material} value={material}>{material}</SelectItem>
-                             ))}
-                           </SelectContent>
-                         </Select>
-                         {field.value.length > 0 && (
-                           <div className="mt-2">
-                             {field.value.map((layer, index) => (
-                               <div key={index} className="flex items-center justify-between p-2 bg-neutral-50 rounded mb-1">
-                                 <span className="text-sm">{index + 1}. {layer}</span>
-                                 <button
-                                   type="button"
-                                   onClick={() => field.onChange(field.value.filter((_, i) => i !== index))}
-                                   className="text-red-500 text-xs"
-                                 >
-                                   Remove
-                                 </button>
-                               </div>
-                             ))}
-                           </div>
-                         )}
+                             <SelectContent>
+                               {materialOptions.map((material) => (
+                                 <SelectItem key={material} value={material}>
+                                   {material}
+                                 </SelectItem>
+                               ))}
+                             </SelectContent>
+                           </Select>
+
+                           {/* Show selected layers */}
+                           {field.value && field.value.length > 0 && (
+                             <div className="space-y-1">
+                               {field.value.map((layer, index) => (
+                                 <div key={index} className="flex items-center justify-between bg-neutral-50 p-2 rounded-md">
+                                   <span className="text-sm">{index + 1}. {layer}</span>
+                                   <Button
+                                     type="button"
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={() => {
+                                       const newLayers = [...field.value];
+                                       newLayers.splice(index, 1);
+                                       field.onChange(newLayers);
+                                     }}
+                                   >
+                                     <X className="h-4 w-4" />
+                                   </Button>
+                                 </div>
+                               ))}
+                             </div>
+                           )}
+                         </div>
                          <FormMessage />
                        </FormItem>
                      )}
@@ -1204,7 +1453,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Felt Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('felt')}>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={isEstimating}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue />
@@ -1344,7 +1597,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Weather Conditions</FormLabel>
-                               <Select onValueChange={field.onChange} value={field.value} onFocus={() => handleFieldFocus('weatherConditions')}>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select weather conditions" />
@@ -1393,7 +1650,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                                  render={({ field }) => (
                                    <FormItem>
                                      <FormLabel>Damage Type</FormLabel>
-                                     <Select onValueChange={field.onChange} value={field.value} onFocus={() => handleFieldFocus(`slopeDamage.${index}.damageType`)}>
+                                     <Select
+                                       value={field.value}
+                                       onValueChange={field.onChange}
+                                       disabled={isEstimating}
+                                     >
                                        <FormControl>
                                          <SelectTrigger>
                                            <SelectValue placeholder="Select damage type" />
@@ -1418,7 +1679,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                                  render={({ field }) => (
                                    <FormItem>
                                      <FormLabel>Damage Severity</FormLabel>
-                                     <Select onValueChange={field.onChange} value={field.value} onFocus={() => handleFieldFocus(`slopeDamage.${index}.severity`)}>
+                                     <Select
+                                       value={field.value}
+                                       onValueChange={field.onChange}
+                                       disabled={isEstimating}
+                                     >
                                        <FormControl>
                                          <SelectTrigger>
                                            <SelectValue placeholder="Select severity" />
@@ -1512,7 +1777,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Job Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('jobType')}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={isEstimating}
+                      >
                         <FormControl>
                           <SelectTrigger>
                                      <SelectValue placeholder="Select job type" />
@@ -1533,7 +1802,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Material Preference</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('materialPreference')}>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select material preference" />
@@ -1561,7 +1834,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                              render={({ field }) => (
                                <FormItem>
                                  <FormLabel>Worker Count</FormLabel>
-                                 <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('laborNeeds.workerCount')}>
+                                 <Select
+                                   value={field.value}
+                                   onValueChange={field.onChange}
+                                   disabled={isEstimating}
+                                 >
                                    <FormControl>
                                      <SelectTrigger>
                                        <SelectValue placeholder="Select worker count" />
@@ -1699,7 +1976,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Project Urgency</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('urgency')}>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select urgency" />
@@ -1721,7 +2002,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Budget Style</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('budgetStyle')}>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select budget style" />
@@ -1747,7 +2032,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Preferred Language</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('preferredLanguage')}>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select language" />
@@ -1771,7 +2060,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Preferred Currency</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value} onFocus={() => handleFieldFocus('preferredCurrency')}>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
                                  <FormControl>
                                    <SelectTrigger>
                                      <SelectValue placeholder="Select currency" />
