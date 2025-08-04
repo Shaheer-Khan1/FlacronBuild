@@ -24,6 +24,7 @@ const subscriptionPlans = [
     name: "Homeowner",
     price: "$19.99",
     period: "month",
+    yearlyPrice: "$199.99",
     description: "Limited access for homeowners",
     features: [
       "Homeowner template only",
@@ -421,109 +422,52 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
 
             {/* Plan Cards - Horizontal Layout */}
             <div className="grid grid-cols-4 gap-6">
-              {selectedBilling === 'yearly' ? (
-                <>
-                  {/* Homeowner replacement card */}
-                  <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-4 text-center min-h-[340px]">
-                    <div className="mb-2 text-gray-400">
-                      <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path stroke="#aaa" strokeWidth="2" d="M12 3v18m9-9H3"/></svg>
+              {subscriptionPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`relative p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    selectedPlan === plan.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setSelectedPlan(plan.id)}
+                >
+                  {plan.popular && (
+                    <span className="absolute -top-2 -right-2 bg-primary text-white text-xs px-2 py-0.5 rounded-full">
+                      Popular
+                    </span>
+                  )}
+                  <div className="flex flex-col items-center text-center">
+                    <div className={`p-3 rounded-lg mb-2 ${selectedPlan === plan.id ? 'bg-primary/10' : 'bg-gray-100'}`}>
+                      <plan.icon className={`w-5 h-5 ${selectedPlan === plan.id ? 'text-primary' : 'text-gray-600'}`} />
                     </div>
-                    <div className="font-semibold text-gray-700 mb-2">Homeowner plan only available for Monthly billing</div>
-                    <button
-                      className="mt-2 px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition"
-                      onClick={() => setSelectedBilling('monthly')}
-                    >
-                      Switch to Monthly
-                    </button>
+                    <h4 className="font-medium text-sm mb-1 leading-tight">{plan.name}</h4>
+                    <div className="mb-2">
+                      <div className="text-lg font-bold">
+                        {selectedBilling === 'yearly' && plan.yearlyPrice ? plan.yearlyPrice : plan.price}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        /{selectedBilling === 'yearly' ? 'year' : 'month'}
+                      </div>
+                    </div>
+                    <ul className="space-y-1">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2 text-xs">
+                          <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                          <span className="leading-tight text-left">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  {/* Show other plans */}
-                  {subscriptionPlans.filter(plan => plan.id !== 'homeowner').map((plan) => (
-                    <div
-                      key={plan.id}
-                      className={`relative p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                        selectedPlan === plan.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => setSelectedPlan(plan.id)}
-                    >
-                      {plan.popular && (
-                        <span className="absolute -top-2 -right-2 bg-primary text-white text-xs px-2 py-0.5 rounded-full">
-                          Popular
-                        </span>
-                      )}
-                      <div className="flex flex-col items-center text-center">
-                        <div className={`p-3 rounded-lg mb-2 ${selectedPlan === plan.id ? 'bg-primary/10' : 'bg-gray-100'}`}>
-                          <plan.icon className={`w-5 h-5 ${selectedPlan === plan.id ? 'text-primary' : 'text-gray-600'}`} />
-                        </div>
-                        <h4 className="font-medium text-sm mb-1 leading-tight">{plan.name}</h4>
-                        <div className="mb-2">
-                          <div className="text-lg font-bold">
-                            {plan.yearlyPrice}
-                          </div>
-                          <div className="text-xs text-gray-500">/year</div>
-                        </div>
-                        <ul className="space-y-1">
-                          {plan.features.map((feature, index) => (
-                            <li key={index} className="flex items-start gap-2 text-xs">
-                              <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                              <span className="leading-tight text-left">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                // Monthly: show all plans
-                <>
-                  {subscriptionPlans.map((plan) => (
-                    <div
-                      key={plan.id}
-                      className={`relative p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                        selectedPlan === plan.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => setSelectedPlan(plan.id)}
-                    >
-                      {plan.popular && (
-                        <span className="absolute -top-2 -right-2 bg-primary text-white text-xs px-2 py-0.5 rounded-full">
-                          Popular
-                        </span>
-                      )}
-                      <div className="flex flex-col items-center text-center">
-                        <div className={`p-3 rounded-lg mb-2 ${selectedPlan === plan.id ? 'bg-primary/10' : 'bg-gray-100'}`}>
-                          <plan.icon className={`w-5 h-5 ${selectedPlan === plan.id ? 'text-primary' : 'text-gray-600'}`} />
-                        </div>
-                        <h4 className="font-medium text-sm mb-1 leading-tight">{plan.name}</h4>
-                        <div className="mb-2">
-                          <div className="text-lg font-bold">
-                            {plan.price}
-                          </div>
-                          <div className="text-xs text-gray-500">/month</div>
-                        </div>
-                        <ul className="space-y-1">
-                          {plan.features.map((feature, index) => (
-                            <li key={index} className="flex items-start gap-2 text-xs">
-                              <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                              <span className="leading-tight text-left">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
+                </div>
+              ))}
             </div>
 
             <div className="flex justify-between gap-2 mt-6">
               <Button variant="outline" onClick={handlePrevStep} disabled={loading} size="sm">
                 Back
               </Button>
-              <Button onClick={handleNextStep} disabled={selectedBilling === 'yearly' && selectedPlan === 'homeowner' || !selectedPlan || loading} size="sm">
+              <Button onClick={handleNextStep} disabled={!selectedPlan || loading} size="sm">
                 Continue
               </Button>
             </div>
