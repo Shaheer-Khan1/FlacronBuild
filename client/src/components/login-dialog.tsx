@@ -25,12 +25,14 @@ const provider = new GoogleAuthProvider();
 
 export const subscriptionPlans = [
   {
+
     id: 'homeowner',
     name: 'Homeowner',
     price: '$19.99',
     period: 'month',
     yearlyPrice: '$199.99',
     description: 'Limited access for homeowners',
+
     features: [
       'Homeowner template only',
       'Limited access',
@@ -314,12 +316,14 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
               handlePrevStep={handlePrevStep}
               roleData={roleData}
             />
+
           );
         default:
           return null;
       }
     } else {
       return (
+
         <form onSubmit={handleEmailAuth} className="flex flex-col gap-3">
           <Input
             type="email"

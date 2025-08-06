@@ -128,7 +128,7 @@ export default function Chatbot({
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
-    
+
     // Add user message
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -139,7 +139,7 @@ export default function Chatbot({
     setMessages(prev => [...prev, userMessage]);
     setInputValue("");
     setIsLoading(true);
-    
+
     try {
       // Generate appropriate response
       const response = generateResponse(text);
@@ -230,7 +230,7 @@ export default function Chatbot({
                         {suggestion}
                       </Button>
                     ))}
-                  </div>
+                      </div>
                 )
               ))}
 
@@ -239,31 +239,31 @@ export default function Chatbot({
                 msg.roleButtons && msg.type === 'bot' && (
                   <div key={`buttons-${index}`} className="mt-3 space-y-2">
                     {msg.roleButtons.map((roleBtn, btnIndex) => {
-                      const IconComponent = roleBtn.icon;
-                      return (
-                        <Button
+                            const IconComponent = roleBtn.icon;
+                            return (
+                              <Button
                           key={btnIndex}
-                          variant="outline"
+                                variant="outline"
                           className="w-full text-left justify-start h-auto p-3 hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors"
                           onClick={() => {
                             handleSendMessage(roleBtn.label);
                             handleRoleButtonClick(roleBtn.role);
                           }}
-                        >
-                          <div className="flex items-start w-full">
+                              >
+                                <div className="flex items-start w-full">
                             <IconComponent className="h-5 w-5 mr-3 text-[#ff8800]" />
                             <div>
                               <div className="font-medium">{roleBtn.label}</div>
                               <div className="text-sm text-neutral-500">{roleBtn.description}</div>
-                            </div>
-                          </div>
-                        </Button>
-                      );
-                    })}
+                                  </div>
+                                </div>
+                              </Button>
+                            );
+                          })}
                   </div>
                 )
               ))}
-
+              
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="bg-neutral-100 rounded-2xl px-4 py-2">
