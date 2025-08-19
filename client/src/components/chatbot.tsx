@@ -201,27 +201,38 @@ export default function Chatbot({
           {/* Header */}
           <div className={cn(
             "border-b border-neutral-200 bg-white flex items-center justify-between",
-            isMobile ? "p-4 pt-6" : "p-4"
+            isMobile ? "p-3" : "p-4"
           )}>
             <div>
-              <h3 className="font-semibold text-lg">FlacronBuild Assistant</h3>
-              <p className="text-sm text-neutral-500">Ask me anything about roofing estimates</p>
+              <h3 className={cn(
+                "font-semibold",
+                isMobile ? "text-base" : "text-lg"
+              )}>FlacronBuild Assistant</h3>
+              <p className={cn(
+                "text-neutral-500",
+                isMobile ? "text-xs" : "text-sm"
+              )}>Ask me anything about roofing estimates</p>
             </div>
             {isMobile && (
               <Button
                 onClick={() => setIsOpen(false)}
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </Button>
             )}
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 p-4 overflow-y-auto" ref={scrollAreaRef}>
-            <div className="space-y-4">
+          <ScrollArea className={cn(
+            "flex-1 overflow-y-auto",
+            isMobile ? "p-3" : "p-4"
+          )} ref={scrollAreaRef}>
+            <div className={cn(
+              isMobile ? "space-y-2" : "space-y-4"
+            )}>
               {messages.map((msg, index) =>
                 (msg.type === 'bot' && (msg.content.startsWith('action:') || msg.content.startsWith('role:'))) ? null : (
                   <div
@@ -233,16 +244,16 @@ export default function Chatbot({
                   >
                     <div
                       className={cn(
-                        "rounded-2xl px-4 py-2",
+                        "rounded-2xl",
                         msg.type === 'user'
                           ? "bg-[#ff8800] text-white"
                           : "bg-neutral-100 text-neutral-900",
-                        isMobile ? "max-w-[85%]" : "max-w-[80%]"
+                        isMobile ? "max-w-[90%] px-3 py-1.5" : "max-w-[80%] px-4 py-2"
                       )}
                     >
                       <p className={cn(
-                        "whitespace-pre-line leading-relaxed",
-                        isMobile ? "text-sm" : "text-sm"
+                        "whitespace-pre-line",
+                        isMobile ? "text-xs leading-relaxed" : "text-sm leading-relaxed"
                       )}>
                         {msg.type === 'bot' ? formatBotMessage(msg.content, msg.format) : msg.content}
                       </p>
@@ -254,14 +265,17 @@ export default function Chatbot({
               {/* Suggestion Buttons */}
               {messages.map((msg, index) => (
                 msg.suggestions && msg.type === 'bot' && (
-                  <div key={`suggestions-${index}`} className="mt-3 flex flex-wrap gap-2">
+                  <div key={`suggestions-${index}`} className={cn(
+                    "flex flex-wrap gap-1.5",
+                    isMobile ? "mt-2" : "mt-3"
+                  )}>
                     {msg.suggestions.map((suggestion, sugIndex) => (
                       <Button
                         key={sugIndex}
                         variant="outline"
                         className={cn(
                           "bg-white rounded-full border border-neutral-200 hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
-                          isMobile ? "text-xs py-1.5 px-3" : "text-sm py-2 px-4"
+                          isMobile ? "text-xs py-1 px-2.5 h-auto" : "text-sm py-2 px-4"
                         )}
                         onClick={() => handleSendMessage(suggestion)}
                       >
@@ -275,7 +289,10 @@ export default function Chatbot({
               {/* Role Buttons */}
               {messages.map((msg, index) => (
                 msg.roleButtons && msg.type === 'bot' && (
-                  <div key={`buttons-${index}`} className="mt-3 space-y-2">
+                  <div key={`buttons-${index}`} className={cn(
+                    "space-y-1.5",
+                    isMobile ? "mt-2" : "mt-3"
+                  )}>
                     {msg.roleButtons.map((roleBtn, btnIndex) => {
                             const IconComponent = roleBtn.icon;
                             return (
@@ -284,7 +301,7 @@ export default function Chatbot({
                                 variant="outline"
                           className={cn(
                             "w-full text-left justify-start h-auto hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
-                            isMobile ? "p-2.5" : "p-3"
+                            isMobile ? "p-2" : "p-3"
                           )}
                           onClick={() => {
                             handleSendMessage(roleBtn.label);
@@ -293,17 +310,17 @@ export default function Chatbot({
                               >
                                 <div className="flex items-start w-full">
                             <IconComponent className={cn(
-                              "text-[#ff8800]",
-                              isMobile ? "h-4 w-4 mr-2" : "h-5 w-5 mr-3"
+                              "text-[#ff8800] flex-shrink-0",
+                              isMobile ? "h-3.5 w-3.5 mr-2 mt-0.5" : "h-5 w-5 mr-3"
                             )} />
                             <div>
                               <div className={cn(
                                 "font-medium",
-                                isMobile ? "text-sm" : "text-base"
+                                isMobile ? "text-xs" : "text-base"
                               )}>{roleBtn.label}</div>
                               <div className={cn(
                                 "text-neutral-500",
-                                isMobile ? "text-xs" : "text-sm"
+                                isMobile ? "text-xs leading-tight" : "text-sm"
                               )}>{roleBtn.description}</div>
                                   </div>
                                 </div>
@@ -316,11 +333,23 @@ export default function Chatbot({
               
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-neutral-100 rounded-2xl px-4 py-2">
-                    <div className="flex space-x-2">
-                      <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                      <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                      <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"></div>
+                  <div className={cn(
+                    "bg-neutral-100 rounded-2xl",
+                    isMobile ? "px-3 py-1.5" : "px-4 py-2"
+                  )}>
+                    <div className="flex space-x-1.5">
+                      <div className={cn(
+                        "bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.3s]",
+                        isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
+                      )}></div>
+                      <div className={cn(
+                        "bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.15s]",
+                        isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
+                      )}></div>
+                      <div className={cn(
+                        "bg-neutral-400 rounded-full animate-bounce",
+                        isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
+                      )}></div>
                     </div>
                   </div>
                 </div>
@@ -331,14 +360,17 @@ export default function Chatbot({
           {/* Input Area */}
           <div className={cn(
             "border-t border-neutral-200 bg-white",
-            isMobile ? "p-3 pb-4" : "p-4"
+            isMobile ? "p-2.5" : "p-4"
           )}>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage(inputValue);
               }}
-              className="flex items-center space-x-2"
+              className={cn(
+                "flex items-center",
+                isMobile ? "space-x-1.5" : "space-x-2"
+              )}
             >
               <input
                 type="text"
@@ -347,19 +379,19 @@ export default function Chatbot({
                 placeholder="Type your message..."
                 className={cn(
                   "flex-1 border border-neutral-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#ff8800] focus:border-transparent",
-                  isMobile ? "px-3 py-2.5 text-sm" : "px-4 py-2 text-sm"
+                  isMobile ? "px-3 py-2 text-xs" : "px-4 py-2 text-sm"
                 )}
               />
               <Button
                 type="submit"
                 size="icon"
                 className={cn(
-                  "rounded-full bg-[#ff8800] hover:bg-[#ff7700] transition-colors",
-                  isMobile ? "h-9 w-9" : "h-10 w-10"
+                  "rounded-full bg-[#ff8800] hover:bg-[#ff7700] transition-colors flex-shrink-0",
+                  isMobile ? "h-8 w-8" : "h-10 w-10"
                 )}
                 disabled={!inputValue.trim() || isLoading}
               >
-                <Send className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
+                <Send className={isMobile ? "h-3.5 w-3.5" : "h-5 w-5"} />
               </Button>
             </form>
           </div>
