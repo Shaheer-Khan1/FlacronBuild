@@ -4,6 +4,7 @@ import { MessageCircle, X, Send, Home, HardHat, ClipboardCheck, Shield, LucideIc
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { userRoleManager, type UserRole } from "@/lib/user-role";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ChatMessage {
   id: string;
@@ -95,6 +96,7 @@ export default function Chatbot({
   currentFormField
 }: ChatbotProps) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const isMobile = useIsMobile();
   const [messages, setMessages] = React.useState<ChatMessage[]>([
     {
       id: 'welcome-message',
@@ -173,19 +175,48 @@ export default function Chatbot({
       {/* Chat Toggle Button */}
       <Button
         onClick={() => setIsOpen((open) => !open)}
-        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg bg-[#ff8800] hover:bg-[#ff7700] transition-colors"
+        className={cn(
+          "fixed z-50 rounded-full shadow-lg bg-[#ff8800] hover:bg-[#ff7700] transition-colors",
+          isMobile 
+            ? "bottom-4 right-4 h-12 w-12" 
+            : "bottom-6 right-6 h-14 w-14"
+        )}
         size="icon"
       >
-        {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {isOpen ? (
+          <X className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
+        ) : (
+          <MessageCircle className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
+        )}
       </Button>
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-[400px] h-[600px] bg-white rounded-2xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden">
+        <div className={cn(
+          "fixed z-50 bg-white shadow-2xl border border-neutral-200 flex flex-col overflow-hidden",
+          isMobile 
+            ? "inset-0 rounded-none h-full w-full" 
+            : "bottom-20 right-6 w-[400px] h-[600px] rounded-2xl"
+        )}>
           {/* Header */}
-          <div className="p-4 border-b border-neutral-200 bg-white">
-            <h3 className="font-semibold text-lg">FlacronBuild Assistant</h3>
-            <p className="text-sm text-neutral-500">Ask me anything about roofing estimates</p>
+          <div className={cn(
+            "border-b border-neutral-200 bg-white flex items-center justify-between",
+            isMobile ? "p-4 pt-6" : "p-4"
+          )}>
+            <div>
+              <h3 className="font-semibold text-lg">FlacronBuild Assistant</h3>
+              <p className="text-sm text-neutral-500">Ask me anything about roofing estimates</p>
+            </div>
+            {isMobile && (
+              <Button
+                onClick={() => setIsOpen(false)}
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            )}
           </div>
 
           {/* Messages */}
@@ -202,13 +233,17 @@ export default function Chatbot({
                   >
                     <div
                       className={cn(
-                        "max-w-[80%] rounded-2xl px-4 py-2",
+                        "rounded-2xl px-4 py-2",
                         msg.type === 'user'
                           ? "bg-[#ff8800] text-white"
-                          : "bg-neutral-100 text-neutral-900"
+                          : "bg-neutral-100 text-neutral-900",
+                        isMobile ? "max-w-[85%]" : "max-w-[80%]"
                       )}
                     >
-                      <p className="text-sm whitespace-pre-line leading-relaxed">
+                      <p className={cn(
+                        "whitespace-pre-line leading-relaxed",
+                        isMobile ? "text-sm" : "text-sm"
+                      )}>
                         {msg.type === 'bot' ? formatBotMessage(msg.content, msg.format) : msg.content}
                       </p>
                     </div>
@@ -224,7 +259,10 @@ export default function Chatbot({
                       <Button
                         key={sugIndex}
                         variant="outline"
-                        className="bg-white text-sm py-2 px-4 rounded-full border border-neutral-200 hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors"
+                        className={cn(
+                          "bg-white rounded-full border border-neutral-200 hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
+                          isMobile ? "text-xs py-1.5 px-3" : "text-sm py-2 px-4"
+                        )}
                         onClick={() => handleSendMessage(suggestion)}
                       >
                         {suggestion}
@@ -244,17 +282,29 @@ export default function Chatbot({
                               <Button
                           key={btnIndex}
                                 variant="outline"
-                          className="w-full text-left justify-start h-auto p-3 hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors"
+                          className={cn(
+                            "w-full text-left justify-start h-auto hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
+                            isMobile ? "p-2.5" : "p-3"
+                          )}
                           onClick={() => {
                             handleSendMessage(roleBtn.label);
                             handleRoleButtonClick(roleBtn.role);
                           }}
                               >
                                 <div className="flex items-start w-full">
-                            <IconComponent className="h-5 w-5 mr-3 text-[#ff8800]" />
+                            <IconComponent className={cn(
+                              "text-[#ff8800]",
+                              isMobile ? "h-4 w-4 mr-2" : "h-5 w-5 mr-3"
+                            )} />
                             <div>
-                              <div className="font-medium">{roleBtn.label}</div>
-                              <div className="text-sm text-neutral-500">{roleBtn.description}</div>
+                              <div className={cn(
+                                "font-medium",
+                                isMobile ? "text-sm" : "text-base"
+                              )}>{roleBtn.label}</div>
+                              <div className={cn(
+                                "text-neutral-500",
+                                isMobile ? "text-xs" : "text-sm"
+                              )}>{roleBtn.description}</div>
                                   </div>
                                 </div>
                               </Button>
@@ -279,7 +329,10 @@ export default function Chatbot({
           </ScrollArea>
 
           {/* Input Area */}
-          <div className="p-4 border-t border-neutral-200 bg-white">
+          <div className={cn(
+            "border-t border-neutral-200 bg-white",
+            isMobile ? "p-3 pb-4" : "p-4"
+          )}>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -292,15 +345,21 @@ export default function Chatbot({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Type your message..."
-                className="flex-1 px-4 py-2 text-sm border border-neutral-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#ff8800] focus:border-transparent"
+                className={cn(
+                  "flex-1 border border-neutral-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#ff8800] focus:border-transparent",
+                  isMobile ? "px-3 py-2.5 text-sm" : "px-4 py-2 text-sm"
+                )}
               />
               <Button
                 type="submit"
                 size="icon"
-                className="h-10 w-10 rounded-full bg-[#ff8800] hover:bg-[#ff7700] transition-colors"
+                className={cn(
+                  "rounded-full bg-[#ff8800] hover:bg-[#ff7700] transition-colors",
+                  isMobile ? "h-9 w-9" : "h-10 w-10"
+                )}
                 disabled={!inputValue.trim() || isLoading}
               >
-                <Send className="h-5 w-5" />
+                <Send className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
               </Button>
             </form>
           </div>
