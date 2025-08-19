@@ -193,42 +193,32 @@ export default function Chatbot({
       {/* Chat Window */}
       {isOpen && (
         <div className={cn(
-          "fixed z-50 bg-white shadow-2xl border border-neutral-200 flex flex-col overflow-hidden",
+          "fixed z-50 bg-white shadow-2xl border border-neutral-200 flex flex-col overflow-hidden rounded-2xl",
           isMobile 
-            ? "inset-0 rounded-none h-full w-full" 
-            : "bottom-20 right-6 w-[400px] h-[600px] rounded-2xl"
+            ? "bottom-20 right-4 w-80 h-96" 
+            : "bottom-20 right-6 w-[400px] h-[600px]"
         )}>
           {/* Header */}
           <div className={cn(
-            "border-b border-neutral-200 bg-white flex items-center justify-between",
-            isMobile ? "p-3" : "p-4"
+            "border-b border-neutral-200 bg-white",
+            isMobile ? "p-2.5" : "p-4"
           )}>
             <div>
               <h3 className={cn(
                 "font-semibold",
-                isMobile ? "text-base" : "text-lg"
+                isMobile ? "text-sm" : "text-lg"
               )}>FlacronBuild Assistant</h3>
               <p className={cn(
                 "text-neutral-500",
                 isMobile ? "text-xs" : "text-sm"
               )}>Ask me anything about roofing estimates</p>
             </div>
-            {isMobile && (
-              <Button
-                onClick={() => setIsOpen(false)}
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
           </div>
 
           {/* Messages */}
           <ScrollArea className={cn(
             "flex-1 overflow-y-auto",
-            isMobile ? "p-3" : "p-4"
+            isMobile ? "p-2" : "p-4"
           )} ref={scrollAreaRef}>
             <div className={cn(
               isMobile ? "space-y-2" : "space-y-4"
@@ -248,7 +238,7 @@ export default function Chatbot({
                         msg.type === 'user'
                           ? "bg-[#ff8800] text-white"
                           : "bg-neutral-100 text-neutral-900",
-                        isMobile ? "max-w-[90%] px-3 py-1.5" : "max-w-[80%] px-4 py-2"
+                        isMobile ? "max-w-[95%] px-2.5 py-1" : "max-w-[80%] px-4 py-2"
                       )}
                     >
                       <p className={cn(
@@ -266,8 +256,8 @@ export default function Chatbot({
               {messages.map((msg, index) => (
                 msg.suggestions && msg.type === 'bot' && (
                   <div key={`suggestions-${index}`} className={cn(
-                    "flex flex-wrap gap-1.5",
-                    isMobile ? "mt-2" : "mt-3"
+                    "flex flex-wrap gap-1",
+                    isMobile ? "mt-1.5" : "mt-3"
                   )}>
                     {msg.suggestions.map((suggestion, sugIndex) => (
                       <Button
@@ -275,7 +265,7 @@ export default function Chatbot({
                         variant="outline"
                         className={cn(
                           "bg-white rounded-full border border-neutral-200 hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
-                          isMobile ? "text-xs py-1 px-2.5 h-auto" : "text-sm py-2 px-4"
+                          isMobile ? "text-xs py-0.5 px-2 h-auto" : "text-sm py-2 px-4"
                         )}
                         onClick={() => handleSendMessage(suggestion)}
                       >
@@ -290,8 +280,8 @@ export default function Chatbot({
               {messages.map((msg, index) => (
                 msg.roleButtons && msg.type === 'bot' && (
                   <div key={`buttons-${index}`} className={cn(
-                    "space-y-1.5",
-                    isMobile ? "mt-2" : "mt-3"
+                    "space-y-1",
+                    isMobile ? "mt-1.5" : "mt-3"
                   )}>
                     {msg.roleButtons.map((roleBtn, btnIndex) => {
                             const IconComponent = roleBtn.icon;
@@ -301,7 +291,7 @@ export default function Chatbot({
                                 variant="outline"
                           className={cn(
                             "w-full text-left justify-start h-auto hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
-                            isMobile ? "p-2" : "p-3"
+                            isMobile ? "p-1.5" : "p-3"
                           )}
                           onClick={() => {
                             handleSendMessage(roleBtn.label);
@@ -311,7 +301,7 @@ export default function Chatbot({
                                 <div className="flex items-start w-full">
                             <IconComponent className={cn(
                               "text-[#ff8800] flex-shrink-0",
-                              isMobile ? "h-3.5 w-3.5 mr-2 mt-0.5" : "h-5 w-5 mr-3"
+                              isMobile ? "h-3 w-3 mr-1.5 mt-0.5" : "h-5 w-5 mr-3"
                             )} />
                             <div>
                               <div className={cn(
@@ -335,20 +325,20 @@ export default function Chatbot({
                 <div className="flex justify-start">
                   <div className={cn(
                     "bg-neutral-100 rounded-2xl",
-                    isMobile ? "px-3 py-1.5" : "px-4 py-2"
+                    isMobile ? "px-2.5 py-1" : "px-4 py-2"
                   )}>
-                    <div className="flex space-x-1.5">
+                    <div className="flex space-x-1">
                       <div className={cn(
                         "bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.3s]",
-                        isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
+                        isMobile ? "w-1 h-1" : "w-2 h-2"
                       )}></div>
                       <div className={cn(
                         "bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.15s]",
-                        isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
+                        isMobile ? "w-1 h-1" : "w-2 h-2"
                       )}></div>
                       <div className={cn(
                         "bg-neutral-400 rounded-full animate-bounce",
-                        isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
+                        isMobile ? "w-1 h-1" : "w-2 h-2"
                       )}></div>
                     </div>
                   </div>
@@ -360,7 +350,7 @@ export default function Chatbot({
           {/* Input Area */}
           <div className={cn(
             "border-t border-neutral-200 bg-white",
-            isMobile ? "p-2.5" : "p-4"
+            isMobile ? "p-2" : "p-4"
           )}>
             <form
               onSubmit={(e) => {
@@ -369,17 +359,17 @@ export default function Chatbot({
               }}
               className={cn(
                 "flex items-center",
-                isMobile ? "space-x-1.5" : "space-x-2"
+                isMobile ? "space-x-1" : "space-x-2"
               )}
             >
               <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Type your message..."
+                placeholder={isMobile ? "Type message..." : "Type your message..."}
                 className={cn(
                   "flex-1 border border-neutral-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#ff8800] focus:border-transparent",
-                  isMobile ? "px-3 py-2 text-xs" : "px-4 py-2 text-sm"
+                  isMobile ? "px-2.5 py-1.5 text-xs" : "px-4 py-2 text-sm"
                 )}
               />
               <Button
@@ -387,11 +377,11 @@ export default function Chatbot({
                 size="icon"
                 className={cn(
                   "rounded-full bg-[#ff8800] hover:bg-[#ff7700] transition-colors flex-shrink-0",
-                  isMobile ? "h-8 w-8" : "h-10 w-10"
+                  isMobile ? "h-7 w-7" : "h-10 w-10"
                 )}
                 disabled={!inputValue.trim() || isLoading}
               >
-                <Send className={isMobile ? "h-3.5 w-3.5" : "h-5 w-5"} />
+                <Send className={isMobile ? "h-3 w-3" : "h-5 w-5"} />
               </Button>
             </form>
           </div>
