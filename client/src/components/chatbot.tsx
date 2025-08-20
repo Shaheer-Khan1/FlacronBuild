@@ -252,74 +252,92 @@ export default function Chatbot({
                 )
               )}
 
-              {/* Suggestion Buttons */}
-              {messages.map((msg, index) => (
-                msg.suggestions && msg.type === 'bot' && (
-                  <div key={`suggestions-${index}`} className={cn(
-                    "flex flex-wrap gap-1",
-                    isMobile ? "mt-1.5" : "mt-3"
-                  )}>
-                    {msg.suggestions.map((suggestion, sugIndex) => (
-                      <Button
-                        key={sugIndex}
-                        variant="outline"
-                        className={cn(
-                          "bg-white rounded-full border border-neutral-200 hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
-                          isMobile ? "text-xs py-0.5 px-2 h-auto" : "text-sm py-2 px-4"
-                        )}
-                        onClick={() => handleSendMessage(suggestion)}
-                      >
-                        {suggestion}
-                      </Button>
-                    ))}
-                      </div>
-                )
-              ))}
-
-              {/* Role Buttons */}
-              {messages.map((msg, index) => (
-                msg.roleButtons && msg.type === 'bot' && (
-                  <div key={`buttons-${index}`} className={cn(
-                    "space-y-1",
-                    isMobile ? "mt-1.5" : "mt-3"
-                  )}>
-                    {msg.roleButtons.map((roleBtn, btnIndex) => {
-                            const IconComponent = roleBtn.icon;
-                            return (
-                              <Button
-                          key={btnIndex}
-                                variant="outline"
+              {/* Suggestion Buttons - Only show for the last bot message with suggestions */}
+              {(() => {
+                // Find the last bot message with suggestions
+                const lastBotMessageWithSuggestions = messages
+                  .slice()
+                  .reverse()
+                  .find(msg => msg.type === 'bot' && msg.suggestions);
+                
+                if (lastBotMessageWithSuggestions && lastBotMessageWithSuggestions.suggestions) {
+                  return (
+                    <div className={cn(
+                      "flex flex-wrap gap-1",
+                      isMobile ? "mt-1.5" : "mt-3"
+                    )}>
+                      {lastBotMessageWithSuggestions.suggestions.map((suggestion, sugIndex) => (
+                        <Button
+                          key={sugIndex}
+                          variant="outline"
                           className={cn(
-                            "w-full text-left justify-start h-auto hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
-                            isMobile ? "p-1.5" : "p-3"
+                            "bg-white rounded-full border border-neutral-200 hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
+                            isMobile ? "text-xs py-0.5 px-2 h-auto" : "text-sm py-2 px-4"
                           )}
-                          onClick={() => {
-                            handleSendMessage(roleBtn.label);
-                            handleRoleButtonClick(roleBtn.role);
-                          }}
-                              >
-                                <div className="flex items-start w-full">
-                            <IconComponent className={cn(
-                              "text-[#ff8800] flex-shrink-0",
-                              isMobile ? "h-3 w-3 mr-1.5 mt-0.5" : "h-5 w-5 mr-3"
-                            )} />
-                            <div>
-                              <div className={cn(
-                                "font-medium",
-                                isMobile ? "text-xs" : "text-base"
-                              )}>{roleBtn.label}</div>
-                              <div className={cn(
-                                "text-neutral-500",
-                                isMobile ? "text-xs leading-tight" : "text-sm"
-                              )}>{roleBtn.description}</div>
-                                  </div>
-                                </div>
-                              </Button>
-                            );
-                          })}
-                  </div>
-                )
-              ))}
+                          onClick={() => handleSendMessage(suggestion)}
+                        >
+                          {suggestion}
+                        </Button>
+                      ))}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Role Buttons - Only show for the last bot message with role buttons */}
+              {(() => {
+                // Find the last bot message with role buttons
+                const lastBotMessageWithRoleButtons = messages
+                  .slice()
+                  .reverse()
+                  .find(msg => msg.type === 'bot' && msg.roleButtons);
+                
+                if (lastBotMessageWithRoleButtons && lastBotMessageWithRoleButtons.roleButtons) {
+                  return (
+                    <div className={cn(
+                      "space-y-1",
+                      isMobile ? "mt-1.5" : "mt-3"
+                    )}>
+                      {lastBotMessageWithRoleButtons.roleButtons.map((roleBtn, btnIndex) => {
+                        const IconComponent = roleBtn.icon;
+                        return (
+                          <Button
+                            key={btnIndex}
+                            variant="outline"
+                            className={cn(
+                              "w-full text-left justify-start h-auto hover:bg-neutral-50 hover:text-[#ff8800] hover:border-[#ff8800] transition-colors",
+                              isMobile ? "p-1.5" : "p-3"
+                            )}
+                            onClick={() => {
+                              handleSendMessage(roleBtn.label);
+                              handleRoleButtonClick(roleBtn.role);
+                            }}
+                          >
+                            <div className="flex items-start w-full">
+                              <IconComponent className={cn(
+                                "text-[#ff8800] flex-shrink-0",
+                                isMobile ? "h-3 w-3 mr-1.5 mt-0.5" : "h-5 w-5 mr-3"
+                              )} />
+                              <div>
+                                <div className={cn(
+                                  "font-medium",
+                                  isMobile ? "text-xs" : "text-base"
+                                )}>{roleBtn.label}</div>
+                                <div className={cn(
+                                  "text-neutral-500",
+                                  isMobile ? "text-xs leading-tight" : "text-sm"
+                                )}>{roleBtn.description}</div>
+                              </div>
+                            </div>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               
               {isLoading && (
                 <div className="flex justify-start">
