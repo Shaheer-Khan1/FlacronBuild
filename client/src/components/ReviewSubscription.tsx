@@ -4,6 +4,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import { subscriptionPlans } from './login-dialog';
+import { userRoleManager } from '@/lib/user-role';
 
 interface RoleData {
   budgetRange: string;
@@ -80,17 +81,8 @@ export default function ReviewSubscriptionStep({
         throw new Error('No user authenticated');
       }
 
-      // Mock user role manager
-      const userRoleManager = {
-        setUserRole: (role: string) => {
-          console.log('=== ROLE SELECTED ===', {
-            selectedRole: role,
-            status: 'User role saved',
-          });
-        },
-      };
-
-      userRoleManager.setUserRole(selectedPlan);
+      // Save user role
+      await userRoleManager.setUserRole(selectedPlan as any);
 
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',

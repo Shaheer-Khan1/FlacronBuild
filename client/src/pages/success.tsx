@@ -20,12 +20,10 @@ export default function SuccessPage() {
     if (sessionIdParam) {
       fetch(`/api/stripe-session/${sessionIdParam}`)
         .then(response => response.json())
-        .then(data => {
+        .then(async data => {
           if (data.role) {
-            console.log('Setting user role:', data.role);
-            userRoleManager.setUserRole(data.role);
-          } else {
-            console.error('No role found in session data:', data);
+            await userRoleManager.setUserRole(data.role);
+            navigate('/');
           }
         })
         .catch(error => {

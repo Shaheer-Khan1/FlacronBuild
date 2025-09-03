@@ -12,7 +12,7 @@ import ChoosePlanStep from './ChoosePlanStep';
 import ProfileCompletionStep from './ProfileCompletionStep';
 import ReviewSubscriptionStep from './ReviewSubscription';
 import LoadingOverlay from './LoadingOverlay';
-import { useRouter } from 'wouter';
+import { useLocation } from 'wouter';
 
 interface LoginDialogProps {
   open: boolean;
@@ -118,7 +118,7 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
   const [loading, setLoading] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isGoogleAuth, setIsGoogleAuth] = useState(false);
-  const router = useRouter();
+  const [, navigate] = useLocation();
 
   const [roleData, setRoleData] = useState({
     budgetRange: '',
@@ -157,11 +157,7 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       const isNewUser = user.metadata.creationTime === user.metadata.lastSignInTime;
-      console.log('=== GOOGLE AUTH ===', {
-        user: isNewUser ? 'NEW USER' : 'EXISTING USER',
-        email: user.email || 'N/A',
-        displayName: user.displayName || 'N/A',
-      });
+      
       if (isNewUser) {
         setIsSignup(true);
         setIsGoogleAuth(true);
@@ -172,7 +168,7 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
         setSignupStep(2);
       } else {
         handleOpenChange(false);
-        router.navigate('/dashboard');
+        navigate('/');
       }
     } catch (e: any) {
       console.error('=== GOOGLE AUTH ERROR ===', { error: e.message });
@@ -201,7 +197,7 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
     try {
       await signInWithEmailAndPassword(auth, email, password);
       handleOpenChange(false);
-      router.navigate('/dashboard');
+      navigate('/');
     } catch (e: any) {
       setError(
         e.code === 'auth/user-not-found'

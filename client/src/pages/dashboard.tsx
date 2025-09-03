@@ -19,10 +19,19 @@ export default function Dashboard() {
   const [currentFormField, setCurrentFormField] = useState<string | undefined>();
 
   useEffect(() => {
-    const role = userRoleManager.getUserRole();
+    const role = userRoleManager.getUserRoleSync();
     if (role) {
       setUserRole(role);
     }
+
+    // Listen for role changes
+    const unsubscribe = userRoleManager.onRoleChange((newRole) => {
+      if (newRole) {
+        setUserRole(newRole);
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   const handleFieldFocus = (fieldName: string) => {
@@ -210,9 +219,9 @@ export default function Dashboard() {
 
         {/* Chatbot */}
         <Chatbot 
-          onRoleSelect={(role) => {
+          onRoleSelect={async (role) => {
             // Update user role in the system
-            userRoleManager.setUserRole(role);
+            await userRoleManager.setUserRole(role);
             // Refresh the dashboard
             window.location.reload();
           }}

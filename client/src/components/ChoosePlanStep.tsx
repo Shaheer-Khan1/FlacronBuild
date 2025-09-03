@@ -55,7 +55,7 @@ export default function ChoosePlanStep({
         />
       ),
     };
-    return icons[iconName] || null;
+    return icons[iconName as keyof typeof icons] || null;
   };
 
   return (

@@ -301,7 +301,7 @@ export default function ProfileCompletionStep({
                 className={`text-sm ${!roleData.jurisdiction ? 'border-red-300' : ''}`}
               />
               <JurisdictionMapPicker
-                apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+                apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}
                 value={roleData.jurisdictionLocation}
                 onChange={(loc) =>
                   setRoleData({

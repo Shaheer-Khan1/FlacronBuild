@@ -104,63 +104,50 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
 
   useEffect(() => {
     const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       setAuthChecked(true);
       
-      // Check if this is a new user who needs role selection
       if (firebaseUser) {
+        // Check if coming from payment success
+        const isSuccessPage = window.location.pathname === '/success' || 
+                             new URLSearchParams(window.location.search).get('session_id');
+        
+        if (isSuccessPage) {
+          setShowLogin(false);
+          return;
+        }
+
+        // Check if user has a role
+        const role = await userRoleManager.getUserRole();
         const isNewUser = firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime;
-        const hasRole = userRoleManager.getUserRole();
         
-        console.log('=== APP AUTH STATE CHANGE ===');
-        console.log('User:', firebaseUser.email);
-        console.log('Is new user:', isNewUser);
-        console.log('Has role:', hasRole);
-        
-        // If user is new and doesn't have a role, they need to complete setup
-        if (isNewUser && !hasRole) {
-          console.log('New user needs role selection - keeping login dialog open');
-          setNeedsRoleSelection(true);
+        if (!role && isNewUser) {
           setShowLogin(true);
         } else {
-          setNeedsRoleSelection(false);
           setShowLogin(false);
         }
-      } else {
-        setNeedsRoleSelection(false);
       }
     });
-    return () => unsubscribe();
+
+    // Close login dialog when role is set
+    const unsubscribeRole = userRoleManager.onRoleChange((role) => {
+      if (role) {
+        setShowLogin(false);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeRole();
+    };
   }, []);
 
   if (!authChecked) {
     return <div>Loading...</div>;
-  }
-
-  // If user exists but needs role selection, show login dialog
-  if (user && needsRoleSelection) {
-    return (
-      <>
-        <LandingPage onGetStarted={() => setShowLogin(true)} />
-        <LoginDialog 
-          open={showLogin} 
-          onOpenChange={(open) => {
-            setShowLogin(open);
-            // If dialog is closed but user still needs role selection, sign them out
-            if (!open && needsRoleSelection) {
-              console.log('User closed dialog without selecting role - signing out');
-              const auth = getAuth();
-              auth.signOut();
-            }
-          }} 
-        />
-      </>
-    );
   }
 
   if (!user) {
@@ -172,7 +159,25 @@ function App() {
     );
   }
 
-  // Existing app content for logged-in users with complete profiles
+  if (showLogin) {
+    return (
+      <>
+        <LandingPage onGetStarted={() => setShowLogin(true)} />
+        <LoginDialog 
+          open={showLogin} 
+          onOpenChange={(open) => {
+            if (!open) {
+              // If user closes dialog without completing setup, sign them out
+              const auth = getAuth();
+              auth.signOut();
+            }
+            setShowLogin(open);
+          }} 
+        />
+      </>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

@@ -440,7 +440,7 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
     libraries: ['places'],
   });
 
-  const savedUserRole = userRoleManager.getUserRole() || "homeowner";
+  const savedUserRole = userRoleManager.getUserRoleSync() || "homeowner";
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectSchema),
