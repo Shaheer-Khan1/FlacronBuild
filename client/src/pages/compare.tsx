@@ -18,7 +18,6 @@ export default function ComparePage() {
   const [, navigate] = useLocation();
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginMessage, setLoginMessage] = useState("");
-  const [roleFilter, setRoleFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [nameFilter, setNameFilter] = useState('');
 
@@ -72,7 +71,6 @@ export default function ComparePage() {
   const filteredReports = reports.filter((report: any) => {
     const project = report.projectData || {};
     let matches = true;
-    if (roleFilter && project.userRole !== roleFilter) matches = false;
     if (dateFilter && report.timestamp) {
       const reportDate = new Date(report.timestamp).toISOString().split('T')[0];
       if (reportDate !== dateFilter) matches = false;
@@ -90,19 +88,6 @@ export default function ComparePage() {
         <p className="text-neutral-600 mb-8 text-center max-w-xl">Select two estimates to compare.</p>
         {/* Filter Bar */}
         <div className="w-full max-w-5xl mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="flex gap-2 items-center w-full md:w-auto">
-            <label className="text-sm font-medium text-orange-600">Role:</label>
-            <select
-              className="border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-colors"
-              value={roleFilter}
-              onChange={e => setRoleFilter(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="homeowner">Homeowner</option>
-              <option value="contractor">Contractor</option>
-              <option value="insurer">Insurer</option>
-            </select>
-          </div>
           <div className="flex gap-2 items-center w-full md:w-auto">
             <label className="text-sm font-medium text-orange-600">Date:</label>
             <input

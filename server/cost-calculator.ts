@@ -44,7 +44,7 @@ export interface ProjectRequirements {
   exteriorMaterial?: 'vinyl' | 'brick' | 'stucco' | 'wood';
   
   // Role-based fields
-  userRole?: 'inspector' | 'insurer' | 'contractor' | 'homeowner';
+  userRole?: 'inspector' | 'insurance-adjuster' | 'contractor' | 'homeowner';
   role?: string;
   
   // Allow any additional properties from the form
@@ -499,7 +499,7 @@ IMPORTANT DATA REQUIREMENTS:
 
 Generate realistic, professional content using ALL the provided project details. Return ONLY the JSON object with no markdown formatting - pure JSON starting with {.`;
 
-      case "insurer":
+      case "insurance-adjuster":
         return `You are an insurance adjuster conducting a comprehensive claim assessment. Generate a detailed Insurance Claim Report based on this project data: ${JSON.stringify(project)}
 
 CLAIM ANALYSIS REQUIREMENTS:

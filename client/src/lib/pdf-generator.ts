@@ -33,6 +33,27 @@ function capitalizeWords(str: string | undefined | null): string {
   return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
 }
 
+// Helper function to check if a field has meaningful data
+function hasData(value: any): boolean {
+  if (value === null || value === undefined || value === "") return false;
+  if (Array.isArray(value) && value.length === 0) return false;
+  if (typeof value === "string" && value.trim() === "") return false;
+  return true;
+}
+
+// Helper function to add a field conditionally to PDF
+function addConditionalField(doc: jsPDF, label: string, value: any, margin: number, yPos: number, formatter?: (val: any) => string): number {
+  if (!hasData(value)) return yPos;
+  
+  const displayValue = formatter ? formatter(value) : value;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text(label, margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(displayValue, margin + 50, yPos);
+  return yPos + 7;
+}
+
 function addInsuranceReport(doc: jsPDF, project: any, estimate: any) {
   const pageWidth = doc.internal.pageSize.width;
   const margin = 20;
@@ -47,11 +68,11 @@ function addInsuranceReport(doc: jsPDF, project: any, estimate: any) {
   // Extract report data - handle both direct form data and Gemini response
   const report = estimate?.report || {};
   const claimMetadata = report.claimMetadata || {
-    claimNumber: project.claimNumber,
-    policyholder: project.policyholderName,
-    adjusterName: project.adjusterName,
-    adjusterContact: project.adjusterContact,
-    dateOfLoss: project.dateOfLoss,
+    claimNumber: project.claimNumber || 'Not provided',
+    policyholder: project.policyholderName || 'Not provided',
+    adjusterName: project.insuranceAdjusterInfo?.companyName || project.adjusterName || 'Not provided',
+    adjusterContact: project.insuranceAdjusterInfo?.adjusterId || project.adjusterContact || 'Not provided',
+    dateOfLoss: project.dateOfLoss || 'Not provided',
     dateOfInspection: new Date().toLocaleDateString()
   };
   
@@ -96,22 +117,15 @@ function addInsuranceReport(doc: jsPDF, project: any, estimate: any) {
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
-  const metadataFields = [
-    ['Claim Number:', claimMetadata.claimNumber || project.claimNumber || 'Not provided'],
-    ['Policyholder:', claimMetadata.policyholder || project.policyholderName || 'Not provided'],
-    ['Adjuster:', claimMetadata.adjusterName || project.adjusterName || 'Not provided'],
-    ['Contact:', claimMetadata.adjusterContact || project.adjusterContact || 'Not provided'],
-    ['Date of Loss:', claimMetadata.dateOfLoss || project.dateOfLoss || 'Not provided'],
-    ['Date of Inspection:', claimMetadata.dateOfInspection || new Date().toLocaleDateString()]
-  ];
-  
-  metadataFields.forEach(([label, value]) => {
-    doc.setFont('helvetica', 'bold');
-    doc.text(label, margin, yPos);
-  doc.setFont('helvetica', 'normal');
-    doc.text(value, margin + 50, yPos);
-    yPos += 7;
-  });
+  // Add metadata fields conditionally
+  yPos = addConditionalField(doc, 'Claim Number:', claimMetadata.claimNumber, margin, yPos);
+  yPos = addConditionalField(doc, 'Policyholder:', claimMetadata.policyholder, margin, yPos);
+  yPos = addConditionalField(doc, 'Company Name:', claimMetadata.adjusterName, margin, yPos);
+  yPos = addConditionalField(doc, 'Adjuster ID:', claimMetadata.adjusterContact, margin, yPos);
+  yPos = addConditionalField(doc, 'Jurisdiction:', project.insuranceAdjusterInfo?.jurisdiction, margin, yPos);
+  yPos = addConditionalField(doc, 'Date of Loss:', project.dateOfLoss, margin, yPos);
+  yPos = addConditionalField(doc, 'Damage Cause:', project.damageCause, margin, yPos);
+  yPos = addConditionalField(doc, 'Date of Inspection:', claimMetadata.dateOfInspection || new Date().toLocaleDateString(), margin, yPos);
   yPos += 5;
 
   // Inspection Summary Section
@@ -124,24 +138,37 @@ function addInsuranceReport(doc: jsPDF, project: any, estimate: any) {
   
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
-  const summaryFields = [
-    ['Property Address:', inspectionSummary.propertyAddress || `${project.location?.city || ''}, ${project.location?.country || ''} ${project.location?.zipCode || ''}`],
-    ['Structure Type:', inspectionSummary.structureType || project.structureType],
-    ['Roof Age:', inspectionSummary.roofAge || (project.roofAge ? `${project.roofAge} years` : null)],
-    ['Roof Pitch:', inspectionSummary.roofPitch || project.roofPitch],
-    ['Existing Materials:', inspectionSummary.existingMaterials || project.materialLayers?.join(', ')],
-    ['Total Area:', inspectionSummary.totalArea || (project.area ? `${project.area} sq ft` : null)],
-    ['Weather Conditions:', inspectionSummary.weatherConditions || project.weatherConditions]
-  ].filter(([_, value]) => value && value !== 'Not provided' && value !== 'Not specified');
-
-  summaryFields.forEach(([label, value]) => {
-  doc.setFont('helvetica', 'bold');
-    doc.text(label, margin, yPos);
-    doc.setFont('helvetica', 'normal');
-    doc.text(value, margin + 50, yPos);
-    yPos += 7;
-  });
+  
+  // Add inspection summary fields conditionally
+  const propertyAddress = inspectionSummary.propertyAddress || 
+    (project.location?.city ? `${project.location.city}, ${project.location.country || ''} ${project.location.zipCode || ''}`.trim() : null);
+  yPos = addConditionalField(doc, 'Property Address:', propertyAddress, margin, yPos);
+  yPos = addConditionalField(doc, 'Structure Type:', inspectionSummary.structureType || project.structureType, margin, yPos);
+  yPos = addConditionalField(doc, 'Roof Age:', inspectionSummary.roofAge || (project.roofAge ? `${project.roofAge} years` : null), margin, yPos);
+  yPos = addConditionalField(doc, 'Roof Pitch:', inspectionSummary.roofPitch || project.roofPitch, margin, yPos);
+  yPos = addConditionalField(doc, 'Existing Materials:', inspectionSummary.existingMaterials || project.materialLayers?.join(', '), margin, yPos);
+  yPos = addConditionalField(doc, 'Total Area:', inspectionSummary.totalArea || (project.area ? `${project.area} sq ft` : null), margin, yPos);
+  yPos = addConditionalField(doc, 'Weather Conditions:', inspectionSummary.weatherConditions || project.weatherConditions, margin, yPos);
   yPos += 5;
+
+  // Claim Types Handled Section
+  if (project.insuranceAdjusterInfo?.claimTypesHandled && project.insuranceAdjusterInfo.claimTypesHandled.length > 0) {
+    doc.setFillColor(255, 102, 0);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.rect(margin, yPos, pageWidth - 2*margin, 8, 'F');
+    doc.text('CLAIM TYPES HANDLED', margin + 5, yPos + 6);
+    yPos += 15;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    project.insuranceAdjusterInfo.claimTypesHandled.forEach((claimType: string) => {
+      doc.text(`• ${claimType}`, margin + 10, yPos);
+      yPos += 5;
+    });
+    yPos += 5;
+  }
 
   // Coverage Table Section
   doc.setFillColor(255, 102, 0);
@@ -1501,7 +1528,7 @@ export async function generatePDFReport(project: any, estimate: any, options?: {
     if (uploadedFiles.length > 0) {
       addInspectorImagePages(doc, uploadedFiles, estimate.report);
     }
-  } else if (project.userRole === 'insurer') {
+  } else if (project.userRole === 'insurance-adjuster') {
     doc.addPage();
     addInsuranceReport(doc, project, estimate);
     

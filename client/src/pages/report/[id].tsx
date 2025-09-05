@@ -5,12 +5,36 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, FileText } from "lucide-react";
 import Header from "@/components/header";
+import { auth } from "@/lib/firebase";
 
-function InfoRow({ label, value }: { label: string; value: any }) {
+function capitalizeWords(str: string) {
+  return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+}
+
+function getNameFromEmail(email: string): string {
+  if (!email || !email.includes('@')) return 'User';
+  const namePart = email.split('@')[0];
+  // Replace dots, underscores, and hyphens with spaces, then capitalize
+  return capitalizeWords(namePart.replace(/[._-]/g, ' '));
+}
+
+// Helper function to check if a field has meaningful data
+function hasData(value: any): boolean {
+  if (value === null || value === undefined || value === "") return false;
+  if (Array.isArray(value) && value.length === 0) return false;
+  if (typeof value === "string" && value.trim() === "") return false;
+  return true;
+}
+
+function InfoRow({ label, value, formatter }: { label: string; value: any; formatter?: (val: any) => string }) {
+  if (!hasData(value)) return null;
+  
+  const displayValue = formatter ? formatter(value) : value;
+  
   return (
     <div className="flex mb-1 text-base">
       <span className="font-semibold w-48 text-neutral-700">{label}:</span>
-      <span className="text-neutral-900">{value ?? <span className="text-neutral-400">-</span>}</span>
+      <span className="text-neutral-900">{displayValue}</span>
     </div>
   );
 }
@@ -53,10 +77,16 @@ export default function ReportDetailPage() {
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
 
   useEffect(() => {
+    // Get current user
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      setCurrentUser(user);
+    });
+
     async function fetchReport() {
       setLoading(true);
       setError(null);
@@ -70,6 +100,8 @@ export default function ReportDetailPage() {
       }
     }
     fetchReport();
+
+    return () => unsubscribe();
   }, [params.id]);
 
   if (loading) return <div className="p-8 text-center">Loading report...</div>;
@@ -80,6 +112,14 @@ export default function ReportDetailPage() {
   const gemini = report.geminiResponse || {};
   const formInput = report.formInputData || project;
   const ai = gemini.response?.report || gemini.report || gemini || {};
+
+  // Get homeowner info with fallbacks
+  const homeownerName = formInput.homeownerInfo?.name || 
+                       formInput.policyholderName || 
+                       (currentUser?.email ? getNameFromEmail(currentUser.email) : null);
+  const homeownerEmail = formInput.homeownerInfo?.email || 
+                        currentUser?.email || 
+                        null;
 
   // Project Info
   const locationStr = typeof project.location === 'string'
@@ -114,7 +154,7 @@ export default function ReportDetailPage() {
             <InfoRow label="Project" value={project.name || "Unnamed"} />
             <InfoRow label="Role" value={role || "-"} />
             <InfoRow label="Location" value={locationStr} />
-            <InfoRow label="Date" value={report.timestamp ? new Date(report.timestamp).toLocaleString() : "-"} />
+            <InfoRow label="Date" value={report.timestamp ? new Date(report.timestamp).toLocaleDateString() : "Date not available"} />
           </div>
           {report.pdfRef && (
             <Button className="mt-6" onClick={() => downloadReportPDF(report)}>
@@ -125,44 +165,68 @@ export default function ReportDetailPage() {
 
         <Section title="Project Info">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+            {/* Basic Project Fields */}
             <InfoRow label="Structure Type" value={formInput.structureType} />
             <InfoRow label="Roof Pitch" value={formInput.roofPitch} />
-            <InfoRow label="Roof Age" value={formInput.roofAge} />
-            <InfoRow label="Material Layers" value={Array.isArray(formInput.materialLayers) ? formInput.materialLayers.join(', ') : formInput.materialLayers} />
+            <InfoRow label="Roof Age" value={formInput.roofAge} formatter={(val) => `${val} years`} />
+            <InfoRow label="Material Layers" value={formInput.materialLayers} formatter={(val) => Array.isArray(val) ? val.join(', ') : val} />
             <InfoRow label="Felt" value={formInput.felt} />
-            <InfoRow label="Ice/Water Shield" value={formInput.iceWaterShield ? 'Yes' : 'No'} />
-            <InfoRow label="Drip Edge" value={formInput.dripEdge ? 'Yes' : 'No'} />
-            <InfoRow label="Gutter Apron" value={formInput.gutterApron ? 'Yes' : 'No'} />
-            <InfoRow label="Area" value={formInput.area} />
+            <InfoRow label="Ice/Water Shield" value={formInput.iceWaterShield} formatter={(val) => val ? 'Yes' : 'No'} />
+            <InfoRow label="Drip Edge" value={formInput.dripEdge} formatter={(val) => val ? 'Yes' : 'No'} />
+            <InfoRow label="Gutter Apron" value={formInput.gutterApron} formatter={(val) => val ? 'Yes' : 'No'} />
+            <InfoRow label="Area" value={formInput.area} formatter={(val) => `${val.toLocaleString()} sq ft`} />
             <InfoRow label="Urgency" value={formInput.urgency} />
-            {formInput.inspectorInfo && (
+            
+            {/* Inspector-specific fields */}
+            {role === 'inspector' && (
               <>
-                <InfoRow label="Inspector Name" value={formInput.inspectorInfo.name} />
-                <InfoRow label="Inspector License" value={formInput.inspectorInfo.license} />
-                <InfoRow label="Inspector Contact" value={formInput.inspectorInfo.contact} />
+                <InfoRow label="Inspector Name" value={formInput.inspectorInfo?.name} />
+                <InfoRow label="Inspector License" value={formInput.inspectorInfo?.license} />
+                <InfoRow label="Inspector Contact" value={formInput.inspectorInfo?.contact} />
+                <InfoRow label="Inspection Date" value={formInput.inspectionDate} />
+                <InfoRow label="Weather Conditions" value={formInput.weatherConditions} />
               </>
             )}
-            {formInput.claimNumber && <InfoRow label="Claim Number" value={formInput.claimNumber} />}
-            {formInput.policyholderName && <InfoRow label="Policyholder Name" value={formInput.policyholderName} />}
-            {formInput.adjusterName && <InfoRow label="Adjuster Name" value={formInput.adjusterName} />}
-            {formInput.adjusterContact && <InfoRow label="Adjuster Contact" value={formInput.adjusterContact} />}
-            {formInput.dateOfLoss && <InfoRow label="Date of Loss" value={formInput.dateOfLoss} />}
-            {formInput.damageCause && <InfoRow label="Damage Cause" value={formInput.damageCause} />}
-            {formInput.jobType && <InfoRow label="Job Type" value={formInput.jobType} />}
-            {formInput.materialPreference && <InfoRow label="Material Preference" value={formInput.materialPreference} />}
-            {formInput.laborNeeds && (
+            
+            {/* Insurance Adjuster-specific fields */}
+            {role === 'insurance-adjuster' && (
               <>
-                <InfoRow label="Worker Count" value={formInput.laborNeeds.workerCount} />
-                <InfoRow label="Steep Assist" value={formInput.laborNeeds.steepAssist ? 'Yes' : 'No'} />
+                <InfoRow label="Company Name" value={formInput.insuranceAdjusterInfo?.companyName} />
+                <InfoRow label="Adjuster ID" value={formInput.insuranceAdjusterInfo?.adjusterId} />
+                <InfoRow label="Jurisdiction" value={formInput.insuranceAdjusterInfo?.jurisdiction} />
+                <InfoRow label="Claim Number" value={formInput.claimNumber} />
+                <InfoRow label="Policyholder Name" value={formInput.policyholderName} />
+                <InfoRow label="Adjuster Name" value={formInput.adjusterName} />
+                <InfoRow label="Adjuster Contact" value={formInput.adjusterContact} />
+                <InfoRow label="Date of Loss" value={formInput.dateOfLoss} />
+                <InfoRow label="Damage Cause" value={formInput.damageCause} />
+                <InfoRow label="Claim Types Handled" value={formInput.insuranceAdjusterInfo?.claimTypesHandled} formatter={(val) => Array.isArray(val) ? val.join(', ') : val} />
+                <InfoRow label="Covered Items" value={formInput.coverageMapping?.covered} formatter={(val) => Array.isArray(val) ? val.join(', ') : val} />
+                <InfoRow label="Non-Covered Items" value={formInput.coverageMapping?.excluded} formatter={(val) => Array.isArray(val) ? val.join(', ') : val} />
+                <InfoRow label="Maintenance Items" value={formInput.coverageMapping?.maintenance} formatter={(val) => Array.isArray(val) ? val.join(', ') : val} />
               </>
             )}
-            {formInput.lineItems && Array.isArray(formInput.lineItems) && formInput.lineItems.length > 0 && (
-              <InfoRow label="Line Items" value={formInput.lineItems.join(', ')} />
-            )}
-            {formInput.homeownerInfo && (
+            
+            {/* Contractor-specific fields */}
+            {role === 'contractor' && (
               <>
-                <InfoRow label="Homeowner Name" value={formInput.homeownerInfo.name} />
-                <InfoRow label="Homeowner Email" value={formInput.homeownerInfo.email} />
+                <InfoRow label="Job Type" value={formInput.jobType} />
+                <InfoRow label="Material Preference" value={formInput.materialPreference} />
+                <InfoRow label="Worker Count" value={formInput.laborNeeds?.workerCount} />
+                <InfoRow label="Steep Assist" value={formInput.laborNeeds?.steepAssist} formatter={(val) => val ? 'Yes' : 'No'} />
+                <InfoRow label="Local Permit Required" value={formInput.localPermit} formatter={(val) => val ? 'Yes' : 'No'} />
+                <InfoRow label="Line Items" value={formInput.lineItems} formatter={(val) => Array.isArray(val) ? val.join(', ') : val} />
+              </>
+            )}
+            
+            {/* Homeowner-specific fields */}
+            {role === 'homeowner' && (
+              <>
+                <InfoRow label="Homeowner Name" value={homeownerName} />
+                <InfoRow label="Homeowner Email" value={homeownerEmail} />
+                <InfoRow label="Budget Style" value={formInput.budgetStyle} />
+                <InfoRow label="Preferred Language" value={formInput.preferredLanguage} />
+                <InfoRow label="Preferred Currency" value={formInput.preferredCurrency} />
               </>
             )}
           </div>

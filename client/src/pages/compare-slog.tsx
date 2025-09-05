@@ -1,6 +1,6 @@
 import Header from "@/components/header";
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,13 @@ import { downloadReportPDF } from "@/lib/pdf-storage";
 
 function capitalizeWords(str: string) {
   return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+}
+
+function getNameFromEmail(email: string): string {
+  if (!email || !email.includes('@')) return 'User';
+  const namePart = email.split('@')[0];
+  // Replace dots, underscores, and hyphens with spaces, then capitalize
+  return capitalizeWords(namePart.replace(/[._-]/g, ' '));
 }
 
 function formatCurrency(value: number | string) {
@@ -110,11 +117,41 @@ function generateRecommendation(project: any, costData: any): {
   };
 }
 
+// Helper function to check if a field has meaningful data
+function hasData(value: any): boolean {
+  if (value === null || value === undefined || value === "") return false;
+  if (Array.isArray(value) && value.length === 0) return false;
+  if (typeof value === "string" && value.trim() === "") return false;
+  return true;
+}
+
+// Helper function to render a field conditionally
+function ConditionalField({ label, value, formatter }: { label: string; value: any; formatter?: (val: any) => string }) {
+  if (!hasData(value)) return null;
+  
+  const displayValue = formatter ? formatter(value) : value;
+  
+  return (
+    <div className="flex justify-between border-b border-neutral-200 pb-1">
+      <span className="font-semibold text-neutral-700">{label}:</span>
+      <span className="text-neutral-800">{displayValue}</span>
+    </div>
+  );
+}
+
 // Component to render a single project report in the desired format
-function ProjectReportCard({ report }: { report: any }) {
+function ProjectReportCard({ report, currentUser }: { report: any; currentUser: any }) {
   const project = report.projectData || {};
   const costData = report.geminiResponse?.costBreakdown || {};
   const recommendation = generateRecommendation(project, costData);
+  
+  // Get homeowner info with fallbacks
+  const homeownerName = project.homeownerInfo?.name || 
+                       project.policyholderName || 
+                       (currentUser?.email ? getNameFromEmail(currentUser.email) : null);
+  const homeownerEmail = project.homeownerInfo?.email || 
+                        currentUser?.email || 
+                        null;
 
   const handleViewPDF = async () => {
     console.log('=== COMPARE: View PDF clicked ===');
@@ -180,7 +217,7 @@ function ProjectReportCard({ report }: { report: any }) {
             <div className="flex justify-between">
               <span className="font-semibold text-neutral-700">Date:</span>
               <span className="text-neutral-800">
-                {report.timestamp ? new Date(report.timestamp).toLocaleString() : new Date().toLocaleString()}
+                {report.timestamp ? new Date(report.timestamp).toLocaleDateString() : "Date not available"}
               </span>
             </div>
           </div>
@@ -232,77 +269,101 @@ function ProjectReportCard({ report }: { report: any }) {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
           <div className="space-y-3">
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Structure Type:</span>
-              <span className="text-neutral-800">{project.structureType || "Single Family Home"}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Roof Age:</span>
-              <span className="text-neutral-800">{project.roofAge || "20"}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Felt:</span>
-              <span className="text-neutral-800">{project.felt || "synthetic"}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Drip Edge:</span>
-              <span className="text-neutral-800">{project.dripEdge ? "Yes" : "No"}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Area:</span>
-              <span className="text-neutral-800">{project.area ? project.area.toLocaleString() : "-"}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Inspector Name:</span>
-              <span className="text-neutral-800">{project.inspectorInfo?.name || ""}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Inspector Contact:</span>
-              <span className="text-neutral-800">{project.inspectorInfo?.contact || ""}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Steep Assist:</span>
-              <span className="text-neutral-800">No</span>
-            </div>
+            {/* Basic Project Fields */}
+            <ConditionalField label="Structure Type" value={project.structureType} />
+            <ConditionalField label="Roof Age" value={project.roofAge} formatter={(val) => `${val} years`} />
+            <ConditionalField label="Felt" value={project.felt} />
+            <ConditionalField label="Drip Edge" value={project.dripEdge} formatter={(val) => val ? "Yes" : "No"} />
+            <ConditionalField label="Area" value={project.area} formatter={(val) => val.toLocaleString() + " sq ft"} />
+            <ConditionalField label="Ice/Water Shield" value={project.iceWaterShield} formatter={(val) => val ? "Yes" : "No"} />
+            <ConditionalField label="Gutter Apron" value={project.gutterApron} formatter={(val) => val ? "Yes" : "No"} />
+            
+            {/* Inspector-specific fields */}
+            {project.userRole === 'inspector' && (
+              <>
+                <ConditionalField label="Inspector Name" value={project.inspectorInfo?.name} />
+                <ConditionalField label="Inspector Contact" value={project.inspectorInfo?.contact} />
+                <ConditionalField label="Inspector License" value={project.inspectorInfo?.license} />
+                <ConditionalField label="Inspection Date" value={project.inspectionDate} />
+                <ConditionalField label="Weather Conditions" value={project.weatherConditions} />
+              </>
+            )}
+            
+            {/* Insurance Adjuster-specific fields */}
+            {project.userRole === 'insurance-adjuster' && (
+              <>
+                <ConditionalField label="Company Name" value={project.insuranceAdjusterInfo?.companyName} />
+                <ConditionalField label="Adjuster ID" value={project.insuranceAdjusterInfo?.adjusterId} />
+                <ConditionalField label="Jurisdiction" value={project.insuranceAdjusterInfo?.jurisdiction} />
+                <ConditionalField label="Claim Number" value={project.claimNumber} />
+                <ConditionalField label="Policyholder Name" value={project.policyholderName} />
+                <ConditionalField label="Adjuster Name" value={project.adjusterName} />
+                <ConditionalField label="Adjuster Contact" value={project.adjusterContact} />
+                <ConditionalField label="Date of Loss" value={project.dateOfLoss} />
+                <ConditionalField label="Damage Cause" value={project.damageCause} />
+              </>
+            )}
+            
+            {/* Contractor-specific fields */}
+            {project.userRole === 'contractor' && (
+              <>
+                <ConditionalField label="Job Type" value={project.jobType} />
+                <ConditionalField label="Material Preference" value={project.materialPreference} />
+                <ConditionalField label="Worker Count" value={project.laborNeeds?.workerCount} />
+                <ConditionalField label="Steep Assist" value={project.laborNeeds?.steepAssist} formatter={(val) => val ? "Yes" : "No"} />
+                <ConditionalField label="Local Permit Required" value={project.localPermit} formatter={(val) => val ? "Yes" : "No"} />
+              </>
+            )}
           </div>
 
           <div className="space-y-3">
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Roof Pitch:</span>
-              <span className="text-neutral-800">{project.roofPitch || "Low Slope (2-4/12)"}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Material Layers:</span>
-              <span className="text-neutral-800">
-                {project.materialLayers?.length > 0 
-                  ? project.materialLayers.join(", ") 
-                  : "Metal Roofing, Clay Tiles"}
-              </span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Ice/Water Shield:</span>
-              <span className="text-neutral-800">{project.iceWaterShield ? "Yes" : "No"}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Gutter Apron:</span>
-              <span className="text-neutral-800">{project.gutterApron ? "Yes" : "No"}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Urgency:</span>
-              <span className="text-neutral-800">{project.urgency || "medium"}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Inspector License:</span>
-              <span className="text-neutral-800">{project.inspectorInfo?.license || ""}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Worker Count:</span>
-              <span className="text-neutral-800">-</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-200 pb-1">
-              <span className="font-semibold text-neutral-700">Homeowner Name:</span>
-              <span className="text-neutral-800">{project.policyholderName || "John"}</span>
-            </div>
+            {/* Roof Details */}
+            <ConditionalField label="Roof Pitch" value={project.roofPitch} />
+            <ConditionalField label="Material Layers" value={project.materialLayers} formatter={(val) => val.join(", ")} />
+            <ConditionalField label="Urgency" value={project.urgency} />
+            
+            {/* Homeowner-specific fields */}
+            {project.userRole === 'homeowner' && (
+              <>
+                <ConditionalField label="Homeowner Name" value={homeownerName} />
+                <ConditionalField label="Homeowner Email" value={homeownerEmail} />
+                <ConditionalField label="Budget Style" value={project.budgetStyle} />
+                <ConditionalField label="Preferred Language" value={project.preferredLanguage} />
+                <ConditionalField label="Preferred Currency" value={project.preferredCurrency} />
+              </>
+            )}
+            
+            {/* Claim Types Handled for Insurance Adjuster */}
+            {project.userRole === 'insurance-adjuster' && project.insuranceAdjusterInfo?.claimTypesHandled && (
+              <div className="flex justify-between border-b border-neutral-200 pb-1">
+                <span className="font-semibold text-neutral-700">Claim Types Handled:</span>
+                <span className="text-neutral-800">{project.insuranceAdjusterInfo.claimTypesHandled.join(", ")}</span>
+              </div>
+            )}
+            
+            {/* Coverage Mapping for Insurance Adjuster */}
+            {project.userRole === 'insurance-adjuster' && project.coverageMapping && (
+              <>
+                {project.coverageMapping.covered && project.coverageMapping.covered.length > 0 && (
+                  <div className="flex justify-between border-b border-neutral-200 pb-1">
+                    <span className="font-semibold text-neutral-700">Covered Items:</span>
+                    <span className="text-neutral-800">{project.coverageMapping.covered.join(", ")}</span>
+                  </div>
+                )}
+                {project.coverageMapping.excluded && project.coverageMapping.excluded.length > 0 && (
+                  <div className="flex justify-between border-b border-neutral-200 pb-1">
+                    <span className="font-semibold text-neutral-700">Non-Covered Items:</span>
+                    <span className="text-neutral-800">{project.coverageMapping.excluded.join(", ")}</span>
+                  </div>
+                )}
+                {project.coverageMapping.maintenance && project.coverageMapping.maintenance.length > 0 && (
+                  <div className="flex justify-between border-b border-neutral-200 pb-1">
+                    <span className="font-semibold text-neutral-700">Maintenance Items:</span>
+                    <span className="text-neutral-800">{project.coverageMapping.maintenance.join(", ")}</span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -347,9 +408,15 @@ export default function CompareSlogPage() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [, navigate] = useLocation();
 
   useEffect(() => {
+    // Get current user
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      setCurrentUser(user);
+    });
+
     const params = new URLSearchParams(window.location.search);
     const ids = params.get("ids")?.split(",").filter(Boolean) || [];
     if (ids.length !== 2) {
@@ -362,7 +429,16 @@ export default function CompareSlogPage() {
       setError(null);
       try {
         const snaps = await Promise.all(ids.map(id => getDoc(doc(db, "reports", id))));
-        const data = snaps.map((snap, i) => snap.exists() ? { id: ids[i], ...snap.data() } : null);
+        const data = snaps.map((snap, i) => {
+          if (!snap.exists()) return null;
+          const reportData = snap.data();
+          return {
+            id: ids[i],
+            ...reportData,
+            // Apply the same timestamp mapping as getUserReports
+            timestamp: reportData.createdAt?.toDate?.()?.toISOString() || reportData.createdAt
+          };
+        });
         if (data.some(d => !d)) {
           setError("One or more reports not found.");
         } else {
@@ -375,6 +451,8 @@ export default function CompareSlogPage() {
       }
     }
     fetchReports();
+
+    return () => unsubscribe();
   }, [search]);
 
   if (loading) return (
@@ -397,7 +475,7 @@ export default function CompareSlogPage() {
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl">
           {reports.map((report) => (
-            <ProjectReportCard key={report.id} report={report} />
+            <ProjectReportCard key={report.id} report={report} currentUser={currentUser} />
           ))}
         </div>
       </main>

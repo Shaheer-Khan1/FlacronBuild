@@ -31,7 +31,7 @@ const projectSchema = z.object({
   }),
   structureType: z.string().min(1, "Structure type is required"),
   roofPitch: z.string().min(1, "Roof pitch is required"),
-  roofAge: z.number().min(0, "Roof age must be 0 or greater"),
+  roofAge: z.number().min(1, "Roof age is required"),
   materialLayers: z.array(z.string()).min(1, "At least one material layer is required"),
   iceWaterShield: z.boolean(),
   felt: z.enum(["15lb", "30lb", "synthetic", "none"]),
@@ -118,6 +118,27 @@ const projectSchema = z.object({
     lat: z.number().optional(),
     lng: z.number().optional(),
     address: z.string().optional(),
+  }).optional(),
+
+  // Insurance Adjuster-specific fields
+  insuranceAdjusterInfo: z.object({
+    companyName: z.string().optional(),
+    adjusterId: z.string().optional(),
+    claimTypesHandled: z.array(z.string()).optional(),
+    jurisdiction: z.string().optional(),
+  }).optional(),
+  
+  // PDF-required fields for insurance reports
+  claimNumber: z.string().optional(),
+  policyholderName: z.string().optional(),
+  adjusterName: z.string().optional(),
+  adjusterContact: z.string().optional(),
+  dateOfLoss: z.string().optional(),
+  damageCause: z.string().optional(),
+  coverageMapping: z.object({
+    covered: z.array(z.string()).optional(),
+    excluded: z.array(z.string()).optional(),
+    maintenance: z.array(z.string()).optional(),
   }).optional(),
 });
 
@@ -434,20 +455,41 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [jurisdictionLocation, setJurisdictionLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string>("homeowner");
 
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: ['places'],
   });
 
-  const savedUserRole = userRoleManager.getUserRoleSync() || "homeowner";
+  // Listen for user role changes like the dashboard does
+  useEffect(() => {
+    const role = userRoleManager.getUserRoleSync();
+    console.log('🔍 EstimationForm: Initial role from userRoleManager:', role);
+    if (role) {
+      setCurrentUserRole(role);
+    }
+
+    // Listen for role changes
+    const unsubscribe = userRoleManager.onRoleChange((newRole) => {
+      console.log('🔔 EstimationForm: Role changed to:', newRole);
+      if (newRole) {
+        setCurrentUserRole(newRole);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Use the current user role from state, fallback to prop, then default
+  const effectiveUserRole = currentUserRole || userRole || "homeowner";
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
       name: "",
       projectType: "residential",
-      userRole: savedUserRole,
+      userRole: effectiveUserRole as "inspector" | "insurance-adjuster" | "contractor" | "homeowner",
       location: {
         country: "",
         city: "",
@@ -506,10 +548,41 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
         lng: undefined,
         address: '',
       },
+      // Insurance Adjuster defaults
+      insuranceAdjusterInfo: {
+        companyName: "",
+        adjusterId: "",
+        claimTypesHandled: [],
+        jurisdiction: "",
+      },
+      // PDF-required fields defaults
+      claimNumber: "",
+      policyholderName: "",
+      adjusterName: "",
+      adjusterContact: "",
+      dateOfLoss: "",
+      damageCause: "",
+      coverageMapping: {
+        covered: [],
+        excluded: [],
+        maintenance: [],
+      },
     },
   });
 
+  // Update form when user role changes
+  useEffect(() => {
+    console.log('🔄 EstimationForm: Updating userRole to:', effectiveUserRole);
+    form.setValue("userRole", effectiveUserRole as "inspector" | "insurance-adjuster" | "contractor" | "homeowner");
+  }, [effectiveUserRole, form]);
+
   const selectedRole = form.watch("userRole");
+  
+  // Debug logging for role changes
+  useEffect(() => {
+    console.log('📋 EstimationForm: selectedRole is now:', selectedRole);
+    console.log('📋 EstimationForm: effectiveUserRole is:', effectiveUserRole);
+  }, [selectedRole, effectiveUserRole]);
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: ProjectFormData) => {
@@ -1375,7 +1448,7 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                             value={field.value === 0 ? "" : field.value}
                             onChange={(e) => {
                               const val = e.target.value;
-                              field.onChange(val === "" ? 0 : parseInt(val));
+                              field.onChange(val === "" ? undefined : parseInt(val));
                             }}
                             onFocus={() => handleFieldFocus('roofAge')}
                           />
@@ -2083,6 +2156,354 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            )}
                          />
                        </div>
+                     </div>
+                   )}
+
+                   {/* Insurance Adjuster Fields */}
+                   {selectedRole === "insurance-adjuster" && (
+                     <div className="space-y-4">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField
+                           control={form.control}
+                           name="insuranceAdjusterInfo.companyName"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Company Name</FormLabel>
+                               <FormControl>
+                                 <Input placeholder="Enter company name" {...field} onFocus={() => handleFieldFocus('insuranceAdjusterInfo.companyName')} />
+                               </FormControl>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={form.control}
+                           name="insuranceAdjusterInfo.adjusterId"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Adjuster ID</FormLabel>
+                               <FormControl>
+                                 <Input placeholder="Enter adjuster ID" {...field} onFocus={() => handleFieldFocus('insuranceAdjusterInfo.adjusterId')} />
+                               </FormControl>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                       </div>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField
+                           control={form.control}
+                           name="insuranceAdjusterInfo.jurisdiction"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Jurisdiction (Location)</FormLabel>
+                               <FormControl>
+                                 <Input placeholder="Enter jurisdiction/location" {...field} onFocus={() => handleFieldFocus('insuranceAdjusterInfo.jurisdiction')} />
+                               </FormControl>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={form.control}
+                           name="insuranceAdjusterInfo.claimTypesHandled"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Claim Types Handled</FormLabel>
+                               <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded p-3">
+                                 {[
+                                   "Wind Damage",
+                                   "Hail Damage", 
+                                   "Water Damage",
+                                   "Fire Damage",
+                                   "Storm Damage",
+                                   "Vandalism",
+                                   "Theft",
+                                   "Other"
+                                 ].map((claimType) => (
+                                   <div key={claimType} className="flex items-center space-x-2">
+                                     <input
+                                       type="checkbox"
+                                       id={`claim-${claimType}`}
+                                       checked={field.value?.includes(claimType) || false}
+                                       onChange={(e) => {
+                                         const current = field.value || [];
+                                         if (e.target.checked) {
+                                           field.onChange([...current, claimType]);
+                                         } else {
+                                           field.onChange(current.filter((item: string) => item !== claimType));
+                                         }
+                                       }}
+                                       onFocus={() => handleFieldFocus('insuranceAdjusterInfo.claimTypesHandled')}
+                                       className="h-4 w-4"
+                                     />
+                                     <label htmlFor={`claim-${claimType}`} className="text-sm">
+                                       {claimType}
+                                     </label>
+                                   </div>
+                                 ))}
+                               </div>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                       </div>
+                       
+                       {/* PDF-required fields */}
+                       <div className="space-y-4">
+                         <h4 className="font-medium text-base border-b pb-2">Claim Information</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <FormField
+                             control={form.control}
+                             name="claimNumber"
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormLabel>Claim Number</FormLabel>
+                                 <FormControl>
+                                   <Input placeholder="Enter claim number" {...field} onFocus={() => handleFieldFocus('claimNumber')} />
+                                 </FormControl>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                           <FormField
+                             control={form.control}
+                             name="policyholderName"
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormLabel>Policyholder Name</FormLabel>
+                                 <FormControl>
+                                   <Input placeholder="Enter policyholder name" {...field} onFocus={() => handleFieldFocus('policyholderName')} />
+                                 </FormControl>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                         </div>
+                         
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <FormField
+                             control={form.control}
+                             name="adjusterName"
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormLabel>Adjuster Name</FormLabel>
+                                 <FormControl>
+                                   <Input placeholder="Enter adjuster name" {...field} onFocus={() => handleFieldFocus('adjusterName')} />
+                                 </FormControl>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                           <FormField
+                             control={form.control}
+                             name="adjusterContact"
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormLabel>Adjuster Contact</FormLabel>
+                                 <FormControl>
+                                   <Input placeholder="Enter adjuster contact info" {...field} onFocus={() => handleFieldFocus('adjusterContact')} />
+                                 </FormControl>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                         </div>
+                         
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <FormField
+                             control={form.control}
+                             name="dateOfLoss"
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormLabel>Date of Loss</FormLabel>
+                                 <FormControl>
+                                   <Input type="date" {...field} onFocus={() => handleFieldFocus('dateOfLoss')} />
+                                 </FormControl>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                           <FormField
+                             control={form.control}
+                             name="damageCause"
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormLabel>Primary Damage Cause</FormLabel>
+                                 <Select
+                                   value={field.value}
+                                   onValueChange={field.onChange}
+                                   disabled={isEstimating}
+                                 >
+                                   <FormControl>
+                                     <SelectTrigger>
+                                       <SelectValue placeholder="Select damage cause" />
+                                     </SelectTrigger>
+                                   </FormControl>
+                                   <SelectContent>
+                                     <SelectItem value="wind">Wind</SelectItem>
+                                     <SelectItem value="hail">Hail</SelectItem>
+                                     <SelectItem value="water">Water</SelectItem>
+                                     <SelectItem value="fire">Fire</SelectItem>
+                                     <SelectItem value="storm">Storm</SelectItem>
+                                     <SelectItem value="vandalism">Vandalism</SelectItem>
+                                     <SelectItem value="theft">Theft</SelectItem>
+                                     <SelectItem value="other">Other</SelectItem>
+                                   </SelectContent>
+                                 </Select>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                         </div>
+                       </div>
+                       
+                       {/* Coverage Mapping */}
+                       <div className="space-y-4">
+                         <h4 className="font-medium text-base border-b pb-2">Coverage Analysis</h4>
+                         <div className="space-y-3">
+                           <FormField
+                             control={form.control}
+                             name="coverageMapping.covered"
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormLabel>Covered Items</FormLabel>
+                                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded p-3">
+                                   {[
+                                     "Roof replacement",
+                                     "Gutter replacement", 
+                                     "Fascia repair",
+                                     "Drip edge installation",
+                                     "Ice/water shield",
+                                     "Ventilation repair",
+                                     "Flashing repair",
+                                     "Other structural damage"
+                                   ].map((item) => (
+                                     <div key={item} className="flex items-center space-x-2">
+                                       <input
+                                         type="checkbox"
+                                         id={`covered-${item}`}
+                                         checked={field.value?.includes(item) || false}
+                                         onChange={(e) => {
+                                           const current = field.value || [];
+                                           if (e.target.checked) {
+                                             field.onChange([...current, item]);
+                                           } else {
+                                             field.onChange(current.filter((i: string) => i !== item));
+                                           }
+                                         }}
+                                         onFocus={() => handleFieldFocus('coverageMapping.covered')}
+                                         className="h-4 w-4"
+                                       />
+                                       <label htmlFor={`covered-${item}`} className="text-sm">
+                                         {item}
+                                       </label>
+                                     </div>
+                                   ))}
+                                 </div>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                           
+                           <FormField
+                             control={form.control}
+                             name="coverageMapping.excluded"
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormLabel>Non-Covered Items</FormLabel>
+                                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded p-3">
+                                   {[
+                                     "Pre-existing damage",
+                                     "Wear and tear",
+                                     "Maintenance items",
+                                     "Cosmetic damage",
+                                     "Code upgrades",
+                                     "Permits and fees",
+                                     "Debris removal",
+                                     "Landscaping damage"
+                                   ].map((item) => (
+                                     <div key={item} className="flex items-center space-x-2">
+                                       <input
+                                         type="checkbox"
+                                         id={`excluded-${item}`}
+                                         checked={field.value?.includes(item) || false}
+                                         onChange={(e) => {
+                                           const current = field.value || [];
+                                           if (e.target.checked) {
+                                             field.onChange([...current, item]);
+                                           } else {
+                                             field.onChange(current.filter((i: string) => i !== item));
+                                           }
+                                         }}
+                                         onFocus={() => handleFieldFocus('coverageMapping.excluded')}
+                                         className="h-4 w-4"
+                                       />
+                                       <label htmlFor={`excluded-${item}`} className="text-sm">
+                                         {item}
+                                       </label>
+                                     </div>
+                                   ))}
+                                 </div>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                           
+                           <FormField
+                             control={form.control}
+                             name="coverageMapping.maintenance"
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormLabel>Maintenance Items</FormLabel>
+                                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded p-3">
+                                   {[
+                                     "Gutter cleaning",
+                                     "Roof cleaning",
+                                     "Minor repairs",
+                                     "Preventive maintenance",
+                                     "Regular inspections",
+                                     "Ventilation maintenance",
+                                     "Sealant application",
+                                     "General upkeep"
+                                   ].map((item) => (
+                                     <div key={item} className="flex items-center space-x-2">
+                                       <input
+                                         type="checkbox"
+                                         id={`maintenance-${item}`}
+                                         checked={field.value?.includes(item) || false}
+                                         onChange={(e) => {
+                                           const current = field.value || [];
+                                           if (e.target.checked) {
+                                             field.onChange([...current, item]);
+                                           } else {
+                                             field.onChange(current.filter((i: string) => i !== item));
+                                           }
+                                         }}
+                                         onFocus={() => handleFieldFocus('coverageMapping.maintenance')}
+                                         className="h-4 w-4"
+                                       />
+                                       <label htmlFor={`maintenance-${item}`} className="text-sm">
+                                         {item}
+                                       </label>
+                                     </div>
+                                   ))}
+                                 </div>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Error message for unsupported roles */}
+                   {!["inspector", "contractor", "homeowner", "insurance-adjuster"].includes(selectedRole) && (
+                     <div className="text-center py-8">
+                       <div className="text-red-600 font-medium mb-2">No Questions Available</div>
+                       <p className="text-gray-600">There are no specific questions configured for the selected role: <strong>{selectedRole}</strong></p>
                      </div>
                    )}
                  </div>
