@@ -54,16 +54,664 @@ function addConditionalField(doc: jsPDF, label: string, value: any, margin: numb
   return yPos + 7;
 }
 
+// Helper function to format currency based on user preference
+function formatCurrency(amount: number, currency: string = 'USD'): string {
+  const currencySymbols: { [key: string]: string } = {
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£',
+    'CAD': 'C$',
+    'AUD': 'A$',
+    'JPY': '¥',
+    'CHF': 'CHF'
+  };
+  
+  const symbol = currencySymbols[currency] || '$';
+  return `${symbol}${amount.toLocaleString()}`;
+}
+
+// Helper function to get language-specific text
+function getLocalizedText(key: string, language: string = 'english'): string {
+  const translations: { [key: string]: { [lang: string]: string } } = {
+    // Section Headers
+    'project_info': {
+      'english': 'Project Info',
+      'spanish': 'Información del Proyecto',
+      'french': 'Informations du Projet',
+      'german': 'Projektinformationen',
+      'italian': 'Informazioni del Progetto',
+      'portuguese': 'Informações do Projeto',
+      'chinese': '项目信息',
+      'japanese': 'プロジェクト情報'
+    },
+    'structure_type': {
+      'english': 'Structure Type',
+      'spanish': 'Tipo de Estructura',
+      'french': 'Type de Structure',
+      'german': 'Strukturtyp',
+      'italian': 'Tipo di Struttura',
+      'portuguese': 'Tipo de Estrutura',
+      'chinese': '结构类型',
+      'japanese': '構造タイプ'
+    },
+    'roof_age': {
+      'english': 'Roof Age',
+      'spanish': 'Edad del Techo',
+      'french': 'Âge du Toit',
+      'german': 'Dachalter',
+      'italian': 'Età del Tetto',
+      'portuguese': 'Idade do Telhado',
+      'chinese': '屋顶年龄',
+      'japanese': '屋根の年齢'
+    },
+    'cost_estimates': {
+      'english': 'COST ESTIMATES',
+      'spanish': 'ESTIMACIONES DE COSTOS',
+      'french': 'ESTIMATIONS DE COÛTS',
+      'german': 'KOSTENSCHÄTZUNGEN',
+      'italian': 'STIME DEI COSTI',
+      'portuguese': 'ESTIMATIVAS DE CUSTOS',
+      'chinese': '成本估算',
+      'japanese': 'コスト見積もり'
+    },
+    'materials_cost': {
+      'english': 'Materials Cost Breakdown:',
+      'spanish': 'Desglose de Costos de Materiales:',
+      'french': 'Répartition des Coûts de Matériaux:',
+      'german': 'Materialkosten-Aufschlüsselung:',
+      'italian': 'Ripartizione dei Costi dei Materiali:',
+      'portuguese': 'Detalhamento dos Custos de Materiais:',
+      'chinese': '材料成本明细:',
+      'japanese': '材料費の内訳:'
+    },
+    'labor_cost': {
+      'english': 'Labor Cost:',
+      'spanish': 'Costo de Mano de Obra:',
+      'french': 'Coût de la Main-d\'œuvre:',
+      'german': 'Arbeitskosten:',
+      'italian': 'Costo del Lavoro:',
+      'portuguese': 'Custo da Mão de Obra:',
+      'chinese': '人工成本:',
+      'japanese': '人件費:'
+    },
+    'equipment_cost': {
+      'english': 'Equipment Cost:',
+      'spanish': 'Costo de Equipos:',
+      'french': 'Coût de l\'Équipement:',
+      'german': 'Ausrüstungskosten:',
+      'italian': 'Costo dell\'Attrezzatura:',
+      'portuguese': 'Custo do Equipamento:',
+      'chinese': '设备成本:',
+      'japanese': '設備費:'
+    },
+    'project_total': {
+      'english': 'PROJECT TOTAL:',
+      'spanish': 'TOTAL DEL PROYECTO:',
+      'french': 'TOTAL DU PROJET:',
+      'german': 'PROJEKTGESAMT:',
+      'italian': 'TOTALE PROGETTO:',
+      'portuguese': 'TOTAL DO PROJETO:',
+      'chinese': '项目总计:',
+      'japanese': 'プロジェクト合計:'
+    },
+    
+    // Insurance Report Specific
+    'claim_metadata': {
+      'english': 'CLAIM METADATA',
+      'spanish': 'METADATOS DE RECLAMO',
+      'french': 'MÉTADONNÉES DE RÉCLAMATION',
+      'german': 'ANSPRUCHS-METADATEN',
+      'italian': 'METADATI DEL SINISTRO',
+      'portuguese': 'METADADOS DA RECLAMAÇÃO',
+      'chinese': '索赔元数据',
+      'japanese': 'クレームメタデータ'
+    },
+    'claim_number': {
+      'english': 'Claim Number:',
+      'spanish': 'Número de Reclamo:',
+      'french': 'Numéro de Réclamation:',
+      'german': 'Anspruchsnummer:',
+      'italian': 'Numero di Sinistro:',
+      'portuguese': 'Número da Reclamação:',
+      'chinese': '索赔编号:',
+      'japanese': 'クレーム番号:'
+    },
+    'policyholder_name': {
+      'english': 'Policyholder Name:',
+      'spanish': 'Nombre del Asegurado:',
+      'french': 'Nom de l\'Assuré:',
+      'german': 'Versicherungsnehmer:',
+      'italian': 'Nome dell\'Assicurato:',
+      'portuguese': 'Nome do Segurado:',
+      'chinese': '被保险人姓名:',
+      'japanese': '被保険者名:'
+    },
+    'adjuster_name': {
+      'english': 'Adjuster Name:',
+      'spanish': 'Nombre del Ajustador:',
+      'french': 'Nom de l\'Expert:',
+      'german': 'Sachverständiger:',
+      'italian': 'Nome del Perito:',
+      'portuguese': 'Nome do Ajustador:',
+      'chinese': '理算员姓名:',
+      'japanese': '査定者名:'
+    },
+    'adjuster_contact': {
+      'english': 'Adjuster Contact:',
+      'spanish': 'Contacto del Ajustador:',
+      'french': 'Contact de l\'Expert:',
+      'german': 'Kontakt Sachverständiger:',
+      'italian': 'Contatto del Perito:',
+      'portuguese': 'Contato do Ajustador:',
+      'chinese': '理算员联系方式:',
+      'japanese': '査定者連絡先:'
+    },
+    'date_of_loss': {
+      'english': 'Date of Loss:',
+      'spanish': 'Fecha de Pérdida:',
+      'french': 'Date de Perte:',
+      'german': 'Schadensdatum:',
+      'italian': 'Data del Danno:',
+      'portuguese': 'Data da Perda:',
+      'chinese': '损失日期:',
+      'japanese': '損害発生日:'
+    },
+    'damage_cause': {
+      'english': 'Damage Cause:',
+      'spanish': 'Causa del Daño:',
+      'french': 'Cause du Dommage:',
+      'german': 'Schadensursache:',
+      'italian': 'Causa del Danno:',
+      'portuguese': 'Causa do Dano:',
+      'chinese': '损害原因:',
+      'japanese': '損害原因:'
+    },
+    'inspection_summary': {
+      'english': 'INSPECTION SUMMARY',
+      'spanish': 'RESUMEN DE INSPECCIÓN',
+      'french': 'RÉSUMÉ D\'INSPECTION',
+      'german': 'INSPEKTIONSZUSAMMENFASSUNG',
+      'italian': 'RIEPILOGO ISPEZIONE',
+      'portuguese': 'RESUMO DA INSPEÇÃO',
+      'chinese': '检查摘要',
+      'japanese': '検査サマリー'
+    },
+    'claim_types_handled': {
+      'english': 'CLAIM TYPES HANDLED',
+      'spanish': 'TIPOS DE RECLAMOS MANEJADOS',
+      'french': 'TYPES DE RÉCLAMATIONS TRAITÉES',
+      'german': 'BEHANDELTE ANSPRUCHSTYPEN',
+      'italian': 'TIPI DI SINISTRI GESTITI',
+      'portuguese': 'TIPOS DE RECLAMAÇÕES TRATADAS',
+      'chinese': '处理的索赔类型',
+      'japanese': '取り扱いクレームタイプ'
+    },
+    
+    // Common Labels
+    'rate_per_hour': {
+      'english': 'Rate per Hour:',
+      'spanish': 'Tarifa por Hora:',
+      'french': 'Taux par Heure:',
+      'german': 'Stundensatz:',
+      'italian': 'Tariffa Oraria:',
+      'portuguese': 'Taxa por Hora:',
+      'chinese': '每小时费率:',
+      'japanese': '時給:'
+    },
+    'total_hours': {
+      'english': 'Total Hours:',
+      'spanish': 'Horas Totales:',
+      'french': 'Heures Totales:',
+      'german': 'Gesamtstunden:',
+      'italian': 'Ore Totali:',
+      'portuguese': 'Horas Totais:',
+      'chinese': '总小时数:',
+      'japanese': '総時間:'
+    },
+    'total_materials_cost': {
+      'english': 'Total Materials Cost:',
+      'spanish': 'Costo Total de Materiales:',
+      'french': 'Coût Total des Matériaux:',
+      'german': 'Gesamtmaterialkosten:',
+      'italian': 'Costo Totale Materiali:',
+      'portuguese': 'Custo Total de Materiais:',
+      'chinese': '材料总成本:',
+      'japanese': '材料費合計:'
+    },
+    'total_labor_cost': {
+      'english': 'Total Labor Cost:',
+      'spanish': 'Costo Total de Mano de Obra:',
+      'french': 'Coût Total de la Main-d\'œuvre:',
+      'german': 'Gesamtarbeitskosten:',
+      'italian': 'Costo Totale del Lavoro:',
+      'portuguese': 'Custo Total da Mão de Obra:',
+      'chinese': '人工总成本:',
+      'japanese': '人件費合計:'
+    },
+    'total_equipment_cost': {
+      'english': 'Total Equipment Cost:',
+      'spanish': 'Costo Total de Equipos:',
+      'french': 'Coût Total de l\'Équipement:',
+      'german': 'Gesamtausrüstungskosten:',
+      'italian': 'Costo Totale Attrezzatura:',
+      'portuguese': 'Custo Total do Equipamento:',
+      'chinese': '设备总成本:',
+      'japanese': '設備費合計:'
+    },
+    
+    // Homeowner Report Specific
+    'budget_guidance': {
+      'english': 'BUDGET GUIDANCE',
+      'spanish': 'ORIENTACIÓN PRESUPUESTARIA',
+      'french': 'CONSEILS BUDGÉTAIRES',
+      'german': 'BUDGETBERATUNG',
+      'italian': 'CONSIGLI BUDGET',
+      'portuguese': 'ORIENTAÇÃO ORÇAMENTÁRIA',
+      'chinese': '预算指导',
+      'japanese': '予算ガイダンス'
+    },
+    'estimated_range': {
+      'english': 'Estimated Range:',
+      'spanish': 'Rango Estimado:',
+      'french': 'Gamme Estimée:',
+      'german': 'Geschätzter Bereich:',
+      'italian': 'Gamma Stimata:',
+      'portuguese': 'Faixa Estimada:',
+      'chinese': '估算范围:',
+      'japanese': '見積もり範囲:'
+    },
+    'repairs': {
+      'english': 'Repairs:',
+      'spanish': 'Reparaciones:',
+      'french': 'Réparations:',
+      'german': 'Reparaturen:',
+      'italian': 'Riparazioni:',
+      'portuguese': 'Reparos:',
+      'chinese': '维修:',
+      'japanese': '修理:'
+    },
+    'partial_replacement': {
+      'english': 'Partial Replacement:',
+      'spanish': 'Reemplazo Parcial:',
+      'french': 'Remplacement Partiel:',
+      'german': 'Teilerneuerung:',
+      'italian': 'Sostituzione Parziale:',
+      'portuguese': 'Substituição Parcial:',
+      'chinese': '部分更换:',
+      'japanese': '部分交換:'
+    },
+    'full_replacement': {
+      'english': 'Full Replacement:',
+      'spanish': 'Reemplazo Completo:',
+      'french': 'Remplacement Complet:',
+      'german': 'Vollständige Erneuerung:',
+      'italian': 'Sostituzione Completa:',
+      'portuguese': 'Substituição Completa:',
+      'chinese': '完全更换:',
+      'japanese': '完全交換:'
+    },
+    'financing_options': {
+      'english': 'Financing Options:',
+      'spanish': 'Opciones de Financiamiento:',
+      'french': 'Options de Financement:',
+      'german': 'Finanzierungsoptionen:',
+      'italian': 'Opzioni di Finanziamento:',
+      'portuguese': 'Opções de Financiamento:',
+      'chinese': '融资选择:',
+      'japanese': '資金調達オプション:'
+    },
+    'home_improvement_loans': {
+      'english': 'Home improvement loans',
+      'spanish': 'Préstamos para mejoras del hogar',
+      'french': 'Prêts d\'amélioration de l\'habitat',
+      'german': 'Modernisierungsdarlehen',
+      'italian': 'Prestiti per miglioramenti domestici',
+      'portuguese': 'Empréstimos para melhorias domésticas',
+      'chinese': '房屋改善贷款',
+      'japanese': '住宅改善ローン'
+    },
+    'insurance_claims': {
+      'english': 'Insurance claims (if applicable)',
+      'spanish': 'Reclamos de seguros (si aplica)',
+      'french': 'Réclamations d\'assurance (si applicable)',
+      'german': 'Versicherungsansprüche (falls zutreffend)',
+      'italian': 'Reclami assicurativi (se applicabile)',
+      'portuguese': 'Reclamações de seguro (se aplicável)',
+      'chinese': '保险索赔（如适用）',
+      'japanese': '保険請求（該当する場合）'
+    },
+    'contractor_payment_plans': {
+      'english': 'Contractor payment plans',
+      'spanish': 'Planes de pago del contratista',
+      'french': 'Plans de paiement du contractant',
+      'german': 'Zahlungspläne des Auftragnehmers',
+      'italian': 'Piani di pagamento del contraente',
+      'portuguese': 'Planos de pagamento do contratante',
+      'chinese': '承包商付款计划',
+      'japanese': '請負業者支払いプラン'
+    },
+    'home_equity_line': {
+      'english': 'Home equity line of credit',
+      'spanish': 'Línea de crédito con garantía hipotecaria',
+      'french': 'Ligne de crédit sur valeur domiciliaire',
+      'german': 'Eigenheimkreditlinie',
+      'italian': 'Linea di credito su valore della casa',
+      'portuguese': 'Linha de crédito com garantia imobiliária',
+      'chinese': '房屋净值信贷额度',
+      'japanese': 'ホームエクイティローン'
+    },
+    
+    // Contractor Report Specific
+    'contractor_project_report': {
+      'english': 'CONTRACTOR PROJECT REPORT',
+      'spanish': 'INFORME DE PROYECTO DEL CONTRATISTA',
+      'french': 'RAPPORT DE PROJET DU CONTRACTANT',
+      'german': 'AUSSCHREIBUNGSBERICHT',
+      'italian': 'RAPPORTO PROGETTO APPALTATORE',
+      'portuguese': 'RELATÓRIO DO PROJETO DO CONTRATANTE',
+      'chinese': '承包商项目报告',
+      'japanese': '請負業者プロジェクトレポート'
+    },
+    'project_details': {
+      'english': 'PROJECT DETAILS',
+      'spanish': 'DETALLES DEL PROYECTO',
+      'french': 'DÉTAILS DU PROJET',
+      'german': 'PROJEKTDETAILS',
+      'italian': 'DETTAGLI DEL PROGETTO',
+      'portuguese': 'DETALHES DO PROJETO',
+      'chinese': '项目详情',
+      'japanese': 'プロジェクト詳細'
+    },
+    'project_address': {
+      'english': 'Project Address:',
+      'spanish': 'Dirección del Proyecto:',
+      'french': 'Adresse du Projet:',
+      'german': 'Projektadresse:',
+      'italian': 'Indirizzo del Progetto:',
+      'portuguese': 'Endereço do Projeto:',
+      'chinese': '项目地址:',
+      'japanese': 'プロジェクト住所:'
+    },
+    'project_type': {
+      'english': 'Project Type:',
+      'spanish': 'Tipo de Proyecto:',
+      'french': 'Type de Projet:',
+      'german': 'Projekttyp:',
+      'italian': 'Tipo di Progetto:',
+      'portuguese': 'Tipo de Projeto:',
+      'chinese': '项目类型:',
+      'japanese': 'プロジェクトタイプ:'
+    },
+    'job_type': {
+      'english': 'Job Type:',
+      'spanish': 'Tipo de Trabajo:',
+      'french': 'Type de Travail:',
+      'german': 'Auftragstyp:',
+      'italian': 'Tipo di Lavoro:',
+      'portuguese': 'Tipo de Trabalho:',
+      'chinese': '工作类型:',
+      'japanese': '作業タイプ:'
+    },
+    'material_preference': {
+      'english': 'Material Preference:',
+      'spanish': 'Preferencia de Material:',
+      'french': 'Préférence de Matériau:',
+      'german': 'Materialpräferenz:',
+      'italian': 'Preferenza Materiale:',
+      'portuguese': 'Preferência de Material:',
+      'chinese': '材料偏好:',
+      'japanese': '材料の好み:'
+    },
+    'total_area': {
+      'english': 'Total Area:',
+      'spanish': 'Área Total:',
+      'french': 'Superficie Totale:',
+      'german': 'Gesamtfläche:',
+      'italian': 'Area Totale:',
+      'portuguese': 'Área Total:',
+      'chinese': '总面积:',
+      'japanese': '総面積:'
+    },
+    'roof_pitch': {
+      'english': 'Roof Pitch:',
+      'spanish': 'Pendiente del Techo:',
+      'french': 'Pente du Toit:',
+      'german': 'Dachneigung:',
+      'italian': 'Pendenza del Tetto:',
+      'portuguese': 'Inclinação do Telhado:',
+      'chinese': '屋顶坡度:',
+      'japanese': '屋根の勾配:'
+    },
+    'existing_materials': {
+      'english': 'Existing Materials:',
+      'spanish': 'Materiales Existentes:',
+      'french': 'Matériaux Existants:',
+      'german': 'Vorhandene Materialien:',
+      'italian': 'Materiali Esistenti:',
+      'portuguese': 'Materiais Existentes:',
+      'chinese': '现有材料:',
+      'japanese': '既存材料:'
+    },
+    'local_permit_required': {
+      'english': 'Local Permit Required:',
+      'spanish': 'Permiso Local Requerido:',
+      'french': 'Permis Local Requis:',
+      'german': 'Lokale Genehmigung Erforderlich:',
+      'italian': 'Permesso Locale Richiesto:',
+      'portuguese': 'Permissão Local Necessária:',
+      'chinese': '需要当地许可:',
+      'japanese': '地元許可が必要:'
+    },
+    'scope_of_work': {
+      'english': 'SCOPE OF WORK',
+      'spanish': 'ALCANCE DEL TRABAJO',
+      'french': 'PORTÉE DU TRAVAIL',
+      'german': 'ARBEITSUMFANG',
+      'italian': 'AMBITO DEL LAVORO',
+      'portuguese': 'ESCOPO DO TRABALHO',
+      'chinese': '工作范围',
+      'japanese': '作業範囲'
+    },
+    'preparation_tasks': {
+      'english': 'Preparation Tasks:',
+      'spanish': 'Tareas de Preparación:',
+      'french': 'Tâches de Préparation:',
+      'german': 'Vorbereitungsaufgaben:',
+      'italian': 'Compiti di Preparazione:',
+      'portuguese': 'Tarefas de Preparação:',
+      'chinese': '准备工作:',
+      'japanese': '準備作業:'
+    },
+    'removal_tasks': {
+      'english': 'Removal Tasks:',
+      'spanish': 'Tareas de Remoción:',
+      'french': 'Tâches de Suppression:',
+      'german': 'Entfernungsaufgaben:',
+      'italian': 'Compiti di Rimozione:',
+      'portuguese': 'Tarefas de Remoção:',
+      'chinese': '拆除工作:',
+      'japanese': '撤去作業:'
+    },
+    'installation_tasks': {
+      'english': 'Installation Tasks:',
+      'spanish': 'Tareas de Instalación:',
+      'french': 'Tâches d\'Installation:',
+      'german': 'Installationsaufgaben:',
+      'italian': 'Compiti di Installazione:',
+      'portuguese': 'Tarefas de Instalação:',
+      'chinese': '安装工作:',
+      'japanese': '設置作業:'
+    },
+    'finishing_tasks': {
+      'english': 'Finishing Tasks:',
+      'spanish': 'Tareas de Acabado:',
+      'french': 'Tâches de Finition:',
+      'german': 'Abschlussaufgaben:',
+      'italian': 'Compiti di Finitura:',
+      'portuguese': 'Tarefas de Acabamento:',
+      'chinese': '收尾工作:',
+      'japanese': '仕上げ作業:'
+    },
+    'labor_equipment': {
+      'english': 'LABOR & EQUIPMENT',
+      'spanish': 'MANO DE OBRA Y EQUIPOS',
+      'french': 'MAIN-D\'ŒUVRE ET ÉQUIPEMENT',
+      'german': 'ARBEITSKRAFT & AUSRÜSTUNG',
+      'italian': 'MANODOPERA E ATTREZZATURE',
+      'portuguese': 'MÃO DE OBRA E EQUIPAMENTOS',
+      'chinese': '人工和设备',
+      'japanese': '労働力と設備'
+    },
+    'crew_size': {
+      'english': 'Crew Size:',
+      'spanish': 'Tamaño de la Tripulación:',
+      'french': 'Taille de l\'Équipe:',
+      'german': 'Mannschaftsgröße:',
+      'italian': 'Dimensione della Squadra:',
+      'portuguese': 'Tamanho da Equipe:',
+      'chinese': '团队规模:',
+      'japanese': 'クルーサイズ:'
+    },
+    'estimated_days': {
+      'english': 'Estimated Days:',
+      'spanish': 'Días Estimados:',
+      'french': 'Jours Estimés:',
+      'german': 'Geschätzte Tage:',
+      'italian': 'Giorni Stimati:',
+      'portuguese': 'Dias Estimados:',
+      'chinese': '预计天数:',
+      'japanese': '見積もり日数:'
+    },
+    'steep_assist': {
+      'english': 'Steep Assist:',
+      'spanish': 'Asistencia en Pendientes:',
+      'french': 'Assistance Raide:',
+      'german': 'Steile Unterstützung:',
+      'italian': 'Assistenza Ripida:',
+      'portuguese': 'Assistência Íngreme:',
+      'chinese': '陡坡辅助:',
+      'japanese': '急勾配サポート:'
+    },
+    'special_equipment': {
+      'english': 'Special Equipment:',
+      'spanish': 'Equipos Especiales:',
+      'french': 'Équipement Spécial:',
+      'german': 'Spezialausrüstung:',
+      'italian': 'Attrezzature Speciali:',
+      'portuguese': 'Equipamentos Especiais:',
+      'chinese': '特殊设备:',
+      'japanese': '特殊機器:'
+    },
+    'safety_requirements': {
+      'english': 'Safety Requirements:',
+      'spanish': 'Requisitos de Seguridad:',
+      'french': 'Exigences de Sécurité:',
+      'german': 'Sicherheitsanforderungen:',
+      'italian': 'Requisiti di Sicurezza:',
+      'portuguese': 'Requisitos de Segurança:',
+      'chinese': '安全要求:',
+      'japanese': '安全要件:'
+    },
+    'material_breakdown': {
+      'english': 'MATERIAL BREAKDOWN',
+      'spanish': 'DESGLOSE DE MATERIALES',
+      'french': 'RÉPARTITION DES MATÉRIAUX',
+      'german': 'MATERIALAUFSCHLÜSSELUNG',
+      'italian': 'RIPARTIZIONE MATERIALI',
+      'portuguese': 'DETALHAMENTO DE MATERIAIS',
+      'chinese': '材料明细',
+      'japanese': '材料内訳'
+    },
+    'item': {
+      'english': 'Item',
+      'spanish': 'Artículo',
+      'french': 'Article',
+      'german': 'Artikel',
+      'italian': 'Articolo',
+      'portuguese': 'Item',
+      'chinese': '项目',
+      'japanese': '項目'
+    },
+    'qty': {
+      'english': 'Qty',
+      'spanish': 'Cant',
+      'french': 'Qté',
+      'german': 'Anz',
+      'italian': 'Qtà',
+      'portuguese': 'Qtd',
+      'chinese': '数量',
+      'japanese': '数量'
+    },
+    'unit': {
+      'english': 'Unit',
+      'spanish': 'Unidad',
+      'french': 'Unité',
+      'german': 'Einheit',
+      'italian': 'Unità',
+      'portuguese': 'Unidade',
+      'chinese': '单位',
+      'japanese': '単位'
+    },
+    'notes': {
+      'english': 'Notes',
+      'spanish': 'Notas',
+      'french': 'Notes',
+      'german': 'Notizen',
+      'italian': 'Note',
+      'portuguese': 'Notas',
+      'chinese': '备注',
+      'japanese': '備考'
+    },
+    'project_image': {
+      'english': 'Project Image',
+      'spanish': 'Imagen del Proyecto',
+      'french': 'Image du Projet',
+      'german': 'Projektbild',
+      'italian': 'Immagine del Progetto',
+      'portuguese': 'Imagem do Projeto',
+      'chinese': '项目图片',
+      'japanese': 'プロジェクト画像'
+    },
+    'repair_analysis': {
+      'english': 'Repair Analysis',
+      'spanish': 'Análisis de Reparación',
+      'french': 'Analyse de Réparation',
+      'german': 'Reparaturanalyse',
+      'italian': 'Analisi di Riparazione',
+      'portuguese': 'Análise de Reparo',
+      'chinese': '维修分析',
+      'japanese': '修理分析'
+    },
+    'contractor_analysis': {
+      'english': 'Contractor Analysis & Repair Indicators:',
+      'spanish': 'Análisis del Contratista e Indicadores de Reparación:',
+      'french': 'Analyse du Contractant et Indicateurs de Réparation:',
+      'german': 'Auftragnehmer-Analyse und Reparaturindikatoren:',
+      'italian': 'Analisi del Contraente e Indicatori di Riparazione:',
+      'portuguese': 'Análise do Contratante e Indicadores de Reparo:',
+      'chinese': '承包商分析和维修指标:',
+      'japanese': '請負業者分析と修理指標:'
+    }
+  };
+  
+  return translations[key]?.[language] || translations[key]?.['english'] || key;
+}
+
 function addInsuranceReport(doc: jsPDF, project: any, estimate: any) {
   const pageWidth = doc.internal.pageSize.width;
   const margin = 20;
   let yPos = 20;
+  
+  // Get user preferences
+  const preferredLanguage = project.preferredLanguage || 'english';
+  const preferredCurrency = project.preferredCurrency || 'USD';
   
   // Debug logging
   console.log('=== Insurance Report Data ===');
   console.log('Project:', project);
   console.log('Estimate:', estimate);
   console.log('Report:', estimate?.report);
+  console.log('Language:', preferredLanguage, 'Currency:', preferredCurrency);
   
   // Extract report data - handle both direct form data and Gemini response
   const report = estimate?.report || {};
@@ -112,19 +760,19 @@ function addInsuranceReport(doc: jsPDF, project: any, estimate: any) {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.rect(margin, yPos, pageWidth - 2*margin, 8, 'F');
-  doc.text('CLAIM METADATA', margin + 5, yPos + 6);
+  doc.text(getLocalizedText('claim_metadata', preferredLanguage), margin + 5, yPos + 6);
   yPos += 15;
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
   // Add metadata fields conditionally
-  yPos = addConditionalField(doc, 'Claim Number:', claimMetadata.claimNumber, margin, yPos);
-  yPos = addConditionalField(doc, 'Policyholder:', claimMetadata.policyholder, margin, yPos);
-  yPos = addConditionalField(doc, 'Company Name:', claimMetadata.adjusterName, margin, yPos);
-  yPos = addConditionalField(doc, 'Adjuster ID:', claimMetadata.adjusterContact, margin, yPos);
+  yPos = addConditionalField(doc, getLocalizedText('claim_number', preferredLanguage), claimMetadata.claimNumber, margin, yPos);
+  yPos = addConditionalField(doc, getLocalizedText('policyholder_name', preferredLanguage), claimMetadata.policyholder, margin, yPos);
+  yPos = addConditionalField(doc, getLocalizedText('adjuster_name', preferredLanguage), claimMetadata.adjusterName, margin, yPos);
+  yPos = addConditionalField(doc, getLocalizedText('adjuster_contact', preferredLanguage), claimMetadata.adjusterContact, margin, yPos);
   yPos = addConditionalField(doc, 'Jurisdiction:', project.insuranceAdjusterInfo?.jurisdiction, margin, yPos);
-  yPos = addConditionalField(doc, 'Date of Loss:', project.dateOfLoss, margin, yPos);
-  yPos = addConditionalField(doc, 'Damage Cause:', project.damageCause, margin, yPos);
+  yPos = addConditionalField(doc, getLocalizedText('date_of_loss', preferredLanguage), project.dateOfLoss, margin, yPos);
+  yPos = addConditionalField(doc, getLocalizedText('damage_cause', preferredLanguage), project.damageCause, margin, yPos);
   yPos = addConditionalField(doc, 'Date of Inspection:', claimMetadata.dateOfInspection || new Date().toLocaleDateString(), margin, yPos);
   yPos += 5;
 
@@ -133,7 +781,7 @@ function addInsuranceReport(doc: jsPDF, project: any, estimate: any) {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.rect(margin, yPos, pageWidth - 2*margin, 8, 'F');
-  doc.text('INSPECTION SUMMARY', margin + 5, yPos + 6);
+  doc.text(getLocalizedText('inspection_summary', preferredLanguage), margin + 5, yPos + 6);
   yPos += 15;
   
   doc.setTextColor(0, 0, 0);
@@ -475,11 +1123,16 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
   const margin = 20;
   let yPos = 20;
 
+  // Get user preferences
+  const preferredLanguage = project.preferredLanguage || 'english';
+  const preferredCurrency = project.preferredCurrency || 'USD';
+
   // Debug logging
   console.log('=== Contractor Report Data ===');
   console.log('Project:', project);
   console.log('Estimate:', estimate);
   console.log('Report:', estimate?.report);
+  console.log('Language:', preferredLanguage, 'Currency:', preferredCurrency);
 
   // Extract report data with fallbacks to form data
   const report = (estimate?.report || {}) as ContractorReport;
@@ -585,7 +1238,7 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
   doc.setTextColor(33, 33, 33);
-  doc.text('CONTRACTOR PROJECT REPORT', pageWidth/2, yPos, { align: 'center' });
+  doc.text(getLocalizedText('contractor_project_report', preferredLanguage), pageWidth/2, yPos, { align: 'center' });
   yPos += 15;
 
   // Project Details Section
@@ -593,23 +1246,23 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.rect(margin, yPos, pageWidth - 2*margin, 8, 'F');
-  doc.text('PROJECT DETAILS', margin + 5, yPos + 6);
+  doc.text(getLocalizedText('project_details', preferredLanguage), margin + 5, yPos + 6);
   yPos += 15;
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
   
   const detailsFields = [
-    ['Project Address:', projectDetails.address],
-    ['Project Type:', capitalizeWords(projectDetails.type)],
-    ['Job Type:', project.jobType ? capitalizeWords(project.jobType.replace('-', ' ')) : undefined],
-    ['Material Preference:', project.materialPreference ? capitalizeWords(project.materialPreference) : undefined],
-    ['Total Area:', projectDetails.dimensions?.totalArea ? `${projectDetails.dimensions.totalArea} sq ft` : undefined],
-    ['Roof Pitch:', projectDetails.dimensions?.pitch],
-    ['Roof Age:', project.roofAge ? `${project.roofAge} years` : undefined],
-    ['Structure Type:', project.structureType],
-    ['Existing Materials:', project.materialLayers?.join(', ')],
-    ['Local Permit Required:', project.localPermit ? 'Yes' : 'No']
+    [getLocalizedText('project_address', preferredLanguage), projectDetails.address],
+    [getLocalizedText('project_type', preferredLanguage), capitalizeWords(projectDetails.type)],
+    [getLocalizedText('job_type', preferredLanguage), project.jobType ? capitalizeWords(project.jobType.replace('-', ' ')) : undefined],
+    [getLocalizedText('material_preference', preferredLanguage), project.materialPreference ? capitalizeWords(project.materialPreference) : undefined],
+    [getLocalizedText('total_area', preferredLanguage), projectDetails.dimensions?.totalArea ? `${projectDetails.dimensions.totalArea} sq ft` : undefined],
+    [getLocalizedText('roof_pitch', preferredLanguage), projectDetails.dimensions?.pitch],
+    [getLocalizedText('roof_age', preferredLanguage), project.roofAge ? `${project.roofAge} years` : undefined],
+    [getLocalizedText('structure_type', preferredLanguage), project.structureType],
+    [getLocalizedText('existing_materials', preferredLanguage), project.materialLayers?.join(', ')],
+    [getLocalizedText('local_permit_required', preferredLanguage), project.localPermit ? 'Yes' : 'No']
   ].filter(([_, value]) => value && value.trim() !== '' && value !== 'Not specified') as [string, string][];
 
   detailsFields.forEach(([label, value]) => {
@@ -628,17 +1281,17 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.rect(margin, yPos, pageWidth - 2*margin, 8, 'F');
-    doc.text('SCOPE OF WORK', margin + 5, yPos + 6);
+    doc.text(getLocalizedText('scope_of_work', preferredLanguage), margin + 5, yPos + 6);
     yPos += 15;
 
   doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
 
     const phases = [
-      { title: 'Preparation Tasks', tasks: scopeOfWork.preparationTasks },
-      { title: 'Removal Tasks', tasks: scopeOfWork.removalTasks },
-      { title: 'Installation Tasks', tasks: scopeOfWork.installationTasks },
-      { title: 'Finishing Tasks', tasks: scopeOfWork.finishingTasks }
+      { title: getLocalizedText('preparation_tasks', preferredLanguage), tasks: scopeOfWork.preparationTasks },
+      { title: getLocalizedText('removal_tasks', preferredLanguage), tasks: scopeOfWork.removalTasks },
+      { title: getLocalizedText('installation_tasks', preferredLanguage), tasks: scopeOfWork.installationTasks },
+      { title: getLocalizedText('finishing_tasks', preferredLanguage), tasks: scopeOfWork.finishingTasks }
     ];
 
     phases.forEach(phase => {
@@ -671,16 +1324,16 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.rect(margin, yPos, pageWidth - 2*margin, 8, 'F');
-  doc.text('LABOR & EQUIPMENT', margin + 5, yPos + 6);
+  doc.text(getLocalizedText('labor_equipment', preferredLanguage), margin + 5, yPos + 6);
   yPos += 15;
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
 
   const laborFields = [
-    ['Crew Size:', `${laborRequirements.crewSize} workers`],
-    ['Estimated Days:', `${laborRequirements.estimatedDays} days`],
-    ['Steep Assist:', project.laborNeeds?.steepAssist ? 'Required' : 'Not required']
+    [getLocalizedText('crew_size', preferredLanguage), `${laborRequirements.crewSize} workers`],
+    [getLocalizedText('estimated_days', preferredLanguage), `${laborRequirements.estimatedDays} days`],
+    [getLocalizedText('steep_assist', preferredLanguage), project.laborNeeds?.steepAssist ? 'Required' : 'Not required']
   ];
 
   laborFields.forEach(([label, value]) => {
@@ -727,7 +1380,7 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.rect(margin, yPos, pageWidth - 2*margin, 8, 'F');
-    doc.text('MATERIAL BREAKDOWN', margin + 5, yPos + 6);
+    doc.text(getLocalizedText('material_breakdown', preferredLanguage), margin + 5, yPos + 6);
     yPos += 15;
 
     doc.setTextColor(0, 0, 0);
@@ -735,7 +1388,12 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
 
     // Table headers
     const colWidths = [70, 25, 25, pageWidth - margin * 2 - 70 - 25 - 25 - 5]; // Last col gets remaining width
-    const headers = ['Item', 'Qty', 'Unit', 'Notes'];
+    const headers = [
+      getLocalizedText('item', preferredLanguage), 
+      getLocalizedText('qty', preferredLanguage), 
+      getLocalizedText('unit', preferredLanguage), 
+      getLocalizedText('notes', preferredLanguage)
+    ];
     
     doc.setFont('helvetica', 'bold');
     headers.forEach((header, index) => {
@@ -751,11 +1409,11 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
     doc.setFont('helvetica', 'normal');
     materialBreakdown.forEach((item: MaterialItem) => {
       let xPos = margin;
-      doc.text(item.item.substring(0, 30), xPos, yPos);
+      doc.text((item.item || '').substring(0, 30), xPos, yPos);
       xPos += colWidths[0];
-      doc.text(item.quantity.toString(), xPos, yPos);
+      doc.text((item.quantity || 0).toString(), xPos, yPos);
       xPos += colWidths[1];
-      doc.text(item.unit, xPos, yPos);
+      doc.text(item.unit || '', xPos, yPos);
       xPos += colWidths[2];
       // Wrap notes text
       const notes = item.notes || '';
@@ -779,7 +1437,7 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.rect(margin, yPos, pageWidth - 2*margin, 8, 'F');
-    doc.text('COST ESTIMATES', margin + 5, yPos + 6);
+    doc.text(getLocalizedText('cost_estimates', preferredLanguage), margin + 5, yPos + 6);
     yPos += 15;
 
     doc.setTextColor(0, 0, 0);
@@ -788,45 +1446,45 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
     // Materials Cost
     if (costEstimates.materials.total > 0) {
       doc.setFont('helvetica', 'bold');
-      doc.text('Materials Cost Breakdown:', margin, yPos);
+      doc.text(getLocalizedText('materials_cost', preferredLanguage), margin, yPos);
       yPos += 7;
       doc.setFont('helvetica', 'normal');
       costEstimates.materials.breakdown.forEach((item: CostBreakdownItem) => {
-        doc.text(`${item.category}: $${item.amount.toLocaleString()}`, margin + 10, yPos);
+        doc.text(`${item.category}: ${formatCurrency(item.amount, preferredCurrency)}`, margin + 10, yPos);
         yPos += 5;
       });
       doc.setFont('helvetica', 'bold');
-      doc.text(`Total Materials Cost: $${costEstimates.materials.total.toLocaleString()}`, margin + 10, yPos);
+      doc.text(`${getLocalizedText('total_materials_cost', preferredLanguage)} ${formatCurrency(costEstimates.materials.total, preferredCurrency)}`, margin + 10, yPos);
       yPos += 10;
     }
 
     // Labor Cost
     if (costEstimates.labor.total > 0) {
       doc.setFont('helvetica', 'bold');
-      doc.text('Labor Cost:', margin, yPos);
+      doc.text(getLocalizedText('labor_cost', preferredLanguage), margin, yPos);
       yPos += 7;
           doc.setFont('helvetica', 'normal');
-      doc.text(`Rate per Hour: $${costEstimates.labor.ratePerHour}`, margin + 10, yPos);
+      doc.text(`${getLocalizedText('rate_per_hour', preferredLanguage)} ${formatCurrency(costEstimates.labor.ratePerHour, preferredCurrency)}`, margin + 10, yPos);
       yPos += 5;
-      doc.text(`Total Hours: ${costEstimates.labor.totalHours}`, margin + 10, yPos);
+      doc.text(`${getLocalizedText('total_hours', preferredLanguage)} ${costEstimates.labor.totalHours}`, margin + 10, yPos);
       yPos += 5;
       doc.setFont('helvetica', 'bold');
-      doc.text(`Total Labor Cost: $${costEstimates.labor.total.toLocaleString()}`, margin + 10, yPos);
+      doc.text(`${getLocalizedText('total_labor_cost', preferredLanguage)} ${formatCurrency(costEstimates.labor.total, preferredCurrency)}`, margin + 10, yPos);
       yPos += 10;
     }
 
     // Equipment Cost
     if (costEstimates.equipment.total > 0) {
       doc.setFont('helvetica', 'bold');
-      doc.text('Equipment Cost:', margin, yPos);
+      doc.text(getLocalizedText('equipment_cost', preferredLanguage), margin, yPos);
       yPos += 7;
       doc.setFont('helvetica', 'normal');
       costEstimates.equipment.items.forEach((item: EquipmentItem) => {
-        doc.text(`${item.item}: $${item.cost.toLocaleString()}`, margin + 10, yPos);
+        doc.text(`${item.item}: ${formatCurrency(item.cost, preferredCurrency)}`, margin + 10, yPos);
         yPos += 5;
       });
       doc.setFont('helvetica', 'bold');
-      doc.text(`Total Equipment Cost: $${costEstimates.equipment.total.toLocaleString()}`, margin + 10, yPos);
+      doc.text(`${getLocalizedText('total_equipment_cost', preferredLanguage)} ${formatCurrency(costEstimates.equipment.total, preferredCurrency)}`, margin + 10, yPos);
       yPos += 10;
     }
 
@@ -836,11 +1494,11 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
               doc.setTextColor(255, 102, 0);
-    doc.text(`PROJECT TOTAL: $${grandTotal.toLocaleString()}`, margin, yPos);
+    doc.text(`${getLocalizedText('project_total', preferredLanguage)} ${formatCurrency(grandTotal, preferredCurrency)}`, margin, yPos);
   }
 }
 
-function addContractorImagePages(doc: jsPDF, uploadedFiles: any[], report?: any) {
+function addContractorImagePages(doc: jsPDF, uploadedFiles: any[], report?: any, preferredLanguage: string = 'english') {
   const pageWidth = doc.internal.pageSize.width;
   const margin = 20;
   
@@ -852,7 +1510,7 @@ function addContractorImagePages(doc: jsPDF, uploadedFiles: any[], report?: any)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.setTextColor(33, 33, 33);
-    doc.text(`Project Image ${index + 1} - Repair Analysis`, pageWidth/2, yPos, { align: 'center' });
+    doc.text(`${getLocalizedText('project_image', preferredLanguage)} ${index + 1} - ${getLocalizedText('repair_analysis', preferredLanguage)}`, pageWidth/2, yPos, { align: 'center' });
     yPos += 15;
 
     // Add the image if we have it
@@ -878,7 +1536,7 @@ function addContractorImagePages(doc: jsPDF, uploadedFiles: any[], report?: any)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(255, 102, 0);
-    doc.text('Contractor Analysis & Repair Indicators:', margin, yPos);
+    doc.text(getLocalizedText('contractor_analysis', preferredLanguage), margin, yPos);
     yPos += 10;
 
                 doc.setFont('helvetica', 'normal');
@@ -949,11 +1607,16 @@ function addHomeownerReport(doc: jsPDF, project: any, estimate: any) {
   const margin = 20;
   let yPos = 20;
 
+  // Get user preferences
+  const preferredLanguage = project.preferredLanguage || 'english';
+  const preferredCurrency = project.preferredCurrency || 'USD';
+
   // Debug logging
   console.log('=== Homeowner Report Data ===');
   console.log('Project:', project);
   console.log('Estimate:', estimate);
   console.log('Report:', estimate?.report);
+  console.log('Language:', preferredLanguage, 'Currency:', preferredCurrency);
 
   // Extract report data with fallbacks to form data
   const report = (estimate?.report || {}) as HomeownerReport;
@@ -1259,15 +1922,15 @@ function addHomeownerReport(doc: jsPDF, project: any, estimate: any) {
 
   const budgetGuidance = report.budgetGuidance || {
     estimatedRange: {
-      repairs: project.urgency === 'high' ? '$2,000 - $8,000' : project.urgency === 'medium' ? '$1,000 - $4,000' : '$500 - $2,000',
-      partialReplacement: `$${Math.round((project.area || 1200) * (project.budgetStyle === 'premium' ? 8 : project.budgetStyle === 'basic' ? 4 : 6) * 0.5).toLocaleString()}`,
-      fullReplacement: `$${Math.round((project.area || 1200) * (project.budgetStyle === 'premium' ? 12 : project.budgetStyle === 'basic' ? 6 : 8)).toLocaleString()}`
+      repairs: project.urgency === 'high' ? `${formatCurrency(2000, preferredCurrency)} - ${formatCurrency(8000, preferredCurrency)}` : project.urgency === 'medium' ? `${formatCurrency(1000, preferredCurrency)} - ${formatCurrency(4000, preferredCurrency)}` : `${formatCurrency(500, preferredCurrency)} - ${formatCurrency(2000, preferredCurrency)}`,
+      partialReplacement: formatCurrency(Math.round((project.area || 1200) * (project.budgetStyle === 'premium' ? 8 : project.budgetStyle === 'basic' ? 4 : 6) * 0.5), preferredCurrency),
+      fullReplacement: formatCurrency(Math.round((project.area || 1200) * (project.budgetStyle === 'premium' ? 12 : project.budgetStyle === 'basic' ? 6 : 8)), preferredCurrency)
     },
     financingOptions: [
-      'Home improvement loans',
-      'Insurance claims (if applicable)',
-      'Contractor payment plans',
-      'Home equity line of credit'
+      getLocalizedText('home_improvement_loans', preferredLanguage),
+      getLocalizedText('insurance_claims', preferredLanguage),
+      getLocalizedText('contractor_payment_plans', preferredLanguage),
+      getLocalizedText('home_equity_line', preferredLanguage)
     ],
     costSavingTips: [
       'Get multiple quotes for comparison',
@@ -1289,23 +1952,23 @@ function addHomeownerReport(doc: jsPDF, project: any, estimate: any) {
 
   // Estimated Ranges - ensure all are strings
   doc.setFont('helvetica', 'bold');
-  doc.text('Estimated Cost Ranges:', margin, yPos);
+  doc.text(getLocalizedText('estimated_range', preferredLanguage), margin, yPos);
   yPos += 7;
   doc.setFont('helvetica', 'normal');
   const repairs = String(budgetGuidance.estimatedRange?.repairs || 'Contact for estimate');
   const partialReplacement = String(budgetGuidance.estimatedRange?.partialReplacement || 'Contact for estimate');
   const fullReplacement = String(budgetGuidance.estimatedRange?.fullReplacement || 'Contact for estimate');
   
-  doc.text(`Repairs: ${repairs}`, margin + 10, yPos);
+  doc.text(`${getLocalizedText('repairs', preferredLanguage)} ${repairs}`, margin + 10, yPos);
   yPos += 6;
-  doc.text(`Partial Replacement: ${partialReplacement}`, margin + 10, yPos);
+  doc.text(`${getLocalizedText('partial_replacement', preferredLanguage)} ${partialReplacement}`, margin + 10, yPos);
   yPos += 6;
-  doc.text(`Full Replacement: ${fullReplacement}`, margin + 10, yPos);
+  doc.text(`${getLocalizedText('full_replacement', preferredLanguage)} ${fullReplacement}`, margin + 10, yPos);
   yPos += 10;
 
   // Financing Options - ensure all are strings
   doc.setFont('helvetica', 'bold');
-  doc.text('Financing Options:', margin, yPos);
+  doc.text(getLocalizedText('financing_options', preferredLanguage), margin, yPos);
   yPos += 7;
   doc.setFont('helvetica', 'normal');
   const financingOptions = budgetGuidance.financingOptions || ['Consult with financial advisor'];
@@ -1542,7 +2205,7 @@ export async function generatePDFReport(project: any, estimate: any, options?: {
     
     // Add contractor-specific image pages with repair indicators
     if (uploadedFiles.length > 0) {
-      addContractorImagePages(doc, uploadedFiles, estimate.report);
+      addContractorImagePages(doc, uploadedFiles, estimate.report, project.preferredLanguage || 'english');
     }
   } else if (project.userRole === 'homeowner') {
     doc.addPage();
@@ -1820,7 +2483,11 @@ function addBrandingPage(doc: jsPDF) {
 }
 
 function addInspectorReport(doc: jsPDF, project: any, estimate: any) {
-    // Add diagonal watermark
+  // Get user preferences
+  const preferredLanguage = project.preferredLanguage || 'english';
+  const preferredCurrency = project.preferredCurrency || 'USD';
+
+  // Add diagonal watermark
     doc.saveGraphicsState && doc.saveGraphicsState();
     let gState;
     if (doc.setGState) {

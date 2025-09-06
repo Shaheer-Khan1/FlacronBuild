@@ -328,39 +328,41 @@ function ProjectReportCard({ report, currentUser }: { report: any; currentUser: 
                 <ConditionalField label="Homeowner Name" value={homeownerName} />
                 <ConditionalField label="Homeowner Email" value={homeownerEmail} />
                 <ConditionalField label="Budget Style" value={project.budgetStyle} />
-                <ConditionalField label="Preferred Language" value={project.preferredLanguage} />
-                <ConditionalField label="Preferred Currency" value={project.preferredCurrency} />
               </>
             )}
             
+            {/* Language and Currency Preferences - Available for all roles */}
+            <ConditionalField label="Preferred Language" value={project.preferredLanguage} />
+            <ConditionalField label="Preferred Currency" value={project.preferredCurrency} />
+            
             {/* Claim Types Handled for Insurance Adjuster */}
             {project.userRole === 'insurance-adjuster' && project.insuranceAdjusterInfo?.claimTypesHandled && (
-              <div className="flex justify-between border-b border-neutral-200 pb-1">
+            <div className="flex justify-between border-b border-neutral-200 pb-1">
                 <span className="font-semibold text-neutral-700">Claim Types Handled:</span>
                 <span className="text-neutral-800">{project.insuranceAdjusterInfo.claimTypesHandled.join(", ")}</span>
-              </div>
+            </div>
             )}
             
             {/* Coverage Mapping for Insurance Adjuster */}
             {project.userRole === 'insurance-adjuster' && project.coverageMapping && (
               <>
                 {project.coverageMapping.covered && project.coverageMapping.covered.length > 0 && (
-                  <div className="flex justify-between border-b border-neutral-200 pb-1">
+            <div className="flex justify-between border-b border-neutral-200 pb-1">
                     <span className="font-semibold text-neutral-700">Covered Items:</span>
                     <span className="text-neutral-800">{project.coverageMapping.covered.join(", ")}</span>
-                  </div>
+            </div>
                 )}
                 {project.coverageMapping.excluded && project.coverageMapping.excluded.length > 0 && (
-                  <div className="flex justify-between border-b border-neutral-200 pb-1">
+            <div className="flex justify-between border-b border-neutral-200 pb-1">
                     <span className="font-semibold text-neutral-700">Non-Covered Items:</span>
                     <span className="text-neutral-800">{project.coverageMapping.excluded.join(", ")}</span>
-                  </div>
+            </div>
                 )}
                 {project.coverageMapping.maintenance && project.coverageMapping.maintenance.length > 0 && (
-                  <div className="flex justify-between border-b border-neutral-200 pb-1">
+            <div className="flex justify-between border-b border-neutral-200 pb-1">
                     <span className="font-semibold text-neutral-700">Maintenance Items:</span>
                     <span className="text-neutral-800">{project.coverageMapping.maintenance.join(", ")}</span>
-                  </div>
+            </div>
                 )}
               </>
             )}

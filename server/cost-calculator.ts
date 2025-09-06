@@ -457,9 +457,31 @@ export class RealCostCalculator {
     console.log('buildRolePrompt called with role:', role);
     console.log('project data keys:', Object.keys(project));
     console.log('project.userRole:', project.userRole);
+    
+    try {
+      // Safely stringify project to avoid circular references
+      const projectString = JSON.stringify(project, null, 2);
+      console.log('Project stringified successfully, length:', projectString.length);
+    } catch (stringifyError) {
+      console.error('Error stringifying project:', stringifyError);
+      // Use a safe fallback
+      const safeProject = {
+        structureType: project.structureType || 'Unknown',
+        roofAge: project.roofAge || 'Unknown',
+        roofPitch: project.roofPitch || 'Unknown',
+        materialLayers: project.materialLayers || [],
+        location: project.location || {},
+        preferredLanguage: project.preferredLanguage || 'English',
+        preferredCurrency: project.preferredCurrency || 'USD'
+      };
+      project = safeProject;
+    }
+    
     switch (role) {
       case "inspector":
         return `You are a professional roof inspector conducting a thorough inspection. Generate a comprehensive Inspector Report based on this detailed project data: ${JSON.stringify(project)}
+
+IMPORTANT: Generate the ENTIRE report in ${project.preferredLanguage || 'English'} language and use ${project.preferredCurrency || 'USD'} currency for all monetary values. This includes all section headers, field labels, content descriptions, and any predefined text. Make sure every single piece of text in the response is in the specified language.
 
 ANALYSIS REQUIREMENTS:
 - Use the specific roof details: ${project.structureType}, ${project.roofPitch} pitch, ${project.roofAge} years old
@@ -471,7 +493,7 @@ ANALYSIS REQUIREMENTS:
 Return a JSON object with these professional inspection fields:
 {
   "inspectorNameContact": "${project.inspectorInfo?.name || 'Inspector name not provided'} - License: ${project.inspectorInfo?.license || 'License not provided'}",
-  "inspectionDateTime": "${project.inspectionDate || new Date().toLocaleDateString()}",
+  "inspectionDateTime": "${project.inspectionDate || 'Inspection date not provided'}",
   "addressGpsCoordinates": "${project.location?.city || project.location}, ${project.location?.country || ''} ${project.location?.zipCode || ''}",
   "structureOverview": "${project.structureType} structure with ${project.roofPitch} roof pitch, materials: ${project.materialLayers?.join(', ')}, age: ${project.roofAge} years",
   "slopeConditionTable": ["[Analyze each slope from provided damage data: ${JSON.stringify(project.slopeDamage)} - only include actual reported damage, do not invent conditions]"],
@@ -501,6 +523,8 @@ Generate realistic, professional content using ALL the provided project details.
 
       case "insurance-adjuster":
         return `You are an insurance adjuster conducting a comprehensive claim assessment. Generate a detailed Insurance Claim Report based on this project data: ${JSON.stringify(project)}
+
+IMPORTANT: Generate the ENTIRE report in ${project.preferredLanguage || 'English'} language and use ${project.preferredCurrency || 'USD'} currency for all monetary values. This includes all section headers, field labels, content descriptions, and any predefined text. Make sure every single piece of text in the response is in the specified language.
 
 CLAIM ANALYSIS REQUIREMENTS:
 Property Details:
@@ -623,6 +647,8 @@ Generate comprehensive, insurance-focused content using ALL provided details. Re
 
       case "contractor":
         return `You are a professional roofing contractor analyzing a detailed project for estimation. Create a comprehensive contractor report using ALL the provided project data.
+
+IMPORTANT: Generate the ENTIRE report in ${project.preferredLanguage || 'English'} language and use ${project.preferredCurrency || 'USD'} currency for all monetary values. This includes all section headers, field labels, content descriptions, and any predefined text. Make sure every single piece of text in the response is in the specified language.
 
 AVAILABLE PROJECT DATA TO USE:
 - Location: ${project.location?.city || 'Not provided'}, ${project.location?.country || 'Not provided'} ${project.location?.zipCode || 'Not provided'}
@@ -747,6 +773,8 @@ Generate a detailed, contractor-focused report using ALL provided details. Retur
 
       case "homeowner":
         return `You are a friendly roofing expert helping a homeowner understand their roof's condition. Create a comprehensive but easy-to-understand homeowner report using ALL the provided project data.
+
+IMPORTANT: Generate the ENTIRE report in ${project.preferredLanguage || 'English'} language and use ${project.preferredCurrency || 'USD'} currency for all monetary values. This includes all section headers, field labels, content descriptions, and any predefined text. Make sure every single piece of text in the response is in the specified language.
 
 AVAILABLE PROJECT DATA TO USE:
 - Location: ${project.location?.city || 'Not provided'}, ${project.location?.country || 'Not provided'} ${project.location?.zipCode || 'Not provided'}

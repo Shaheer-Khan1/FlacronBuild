@@ -88,13 +88,7 @@ const projectSchema = z.object({
   lineItems: z.array(z.string()).optional(),
   localPermit: z.boolean().optional(),
   
-  // Homeowner-specific fields
-  homeownerInfo: z.object({
-    name: z.string().optional(),
-    email: z.string().optional(),
-  }).optional(),
-  urgency: z.enum(["low", "medium", "high"]).optional(),
-  budgetStyle: z.enum(["basic", "balanced", "premium"]).optional(),
+  // Shared fields for all roles
   preferredLanguage: z.enum([
     "english",
     "spanish", 
@@ -114,12 +108,20 @@ const projectSchema = z.object({
     "JPY",
     "CHF"
   ]).optional(),
+
+  // Homeowner-specific fields
+  homeownerInfo: z.object({
+    name: z.string().optional(),
+    email: z.string().optional(),
+  }).optional(),
+  urgency: z.enum(["low", "medium", "high"]).optional(),
+  budgetStyle: z.enum(["basic", "balanced", "premium"]).optional(),
   jurisdictionLocation: z.object({
     lat: z.number().optional(),
     lng: z.number().optional(),
     address: z.string().optional(),
   }).optional(),
-
+  
   // Insurance Adjuster-specific fields
   insuranceAdjusterInfo: z.object({
     companyName: z.string().optional(),
@@ -534,6 +536,10 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
       },
       lineItems: [],
       localPermit: false,
+      // Shared defaults for all roles
+      preferredLanguage: undefined,
+      preferredCurrency: undefined,
+      
       // Homeowner defaults
       homeownerInfo: {
         name: "",
@@ -541,8 +547,6 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
       },
       urgency: undefined,
       budgetStyle: undefined,
-      preferredLanguage: undefined,
-      preferredCurrency: undefined,
       jurisdictionLocation: {
         lat: undefined,
         lng: undefined,
@@ -1837,6 +1841,66 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            </FormItem>
                          )}
                        />
+                       
+                       {/* Language and Currency Preferences */}
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField
+                           control={form.control}
+                           name="preferredLanguage"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Preferred Language</FormLabel>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
+                                 <FormControl>
+                                   <SelectTrigger>
+                                     <SelectValue placeholder="Select language" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {languageOptions.map((language) => (
+                                     <SelectItem key={language.value} value={language.value}>
+                                       {language.label}
+                                     </SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={form.control}
+                           name="preferredCurrency"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Preferred Currency</FormLabel>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
+                                 <FormControl>
+                                   <SelectTrigger>
+                                     <SelectValue placeholder="Select currency" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {currencyOptions.map((currency) => (
+                                     <SelectItem key={currency.value} value={currency.value}>
+                                       {currency.label}
+                                     </SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                       </div>
                      </div>
                    )}
 
@@ -2006,6 +2070,66 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            </FormItem>
                          )}
                        />
+                       
+                       {/* Language and Currency Preferences */}
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField
+                           control={form.control}
+                           name="preferredLanguage"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Preferred Language</FormLabel>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
+                                 <FormControl>
+                                   <SelectTrigger>
+                                     <SelectValue placeholder="Select language" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {languageOptions.map((language) => (
+                                     <SelectItem key={language.value} value={language.value}>
+                                       {language.label}
+                                     </SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={form.control}
+                           name="preferredCurrency"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Preferred Currency</FormLabel>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
+                                 <FormControl>
+                                   <SelectTrigger>
+                                     <SelectValue placeholder="Select currency" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {currencyOptions.map((currency) => (
+                                     <SelectItem key={currency.value} value={currency.value}>
+                                       {currency.label}
+                                     </SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                       </div>
                      </div>
                    )}
 
@@ -2198,9 +2322,9 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                            render={({ field }) => (
                              <FormItem>
                                <FormLabel>Jurisdiction (Location)</FormLabel>
-                               <FormControl>
+                                 <FormControl>
                                  <Input placeholder="Enter jurisdiction/location" {...field} onFocus={() => handleFieldFocus('insuranceAdjusterInfo.jurisdiction')} />
-                               </FormControl>
+                                 </FormControl>
                                <FormMessage />
                              </FormItem>
                            )}
@@ -2253,35 +2377,35 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                        {/* PDF-required fields */}
                        <div className="space-y-4">
                          <h4 className="font-medium text-base border-b pb-2">Claim Information</h4>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <FormField
-                             control={form.control}
-                             name="claimNumber"
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormLabel>Claim Number</FormLabel>
-                                 <FormControl>
-                                   <Input placeholder="Enter claim number" {...field} onFocus={() => handleFieldFocus('claimNumber')} />
-                                 </FormControl>
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                           <FormField
-                             control={form.control}
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField
+                           control={form.control}
+                           name="claimNumber"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Claim Number</FormLabel>
+                               <FormControl>
+                                 <Input placeholder="Enter claim number" {...field} onFocus={() => handleFieldFocus('claimNumber')} />
+                               </FormControl>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={form.control}
                              name="policyholderName"
-                             render={({ field }) => (
-                               <FormItem>
+                           render={({ field }) => (
+                             <FormItem>
                                  <FormLabel>Policyholder Name</FormLabel>
-                                 <FormControl>
+                               <FormControl>
                                    <Input placeholder="Enter policyholder name" {...field} onFocus={() => handleFieldFocus('policyholderName')} />
-                                 </FormControl>
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                         </div>
-                         
+                               </FormControl>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                       </div>
+                       
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <FormField
                              control={form.control}
@@ -2363,11 +2487,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                        <div className="space-y-4">
                          <h4 className="font-medium text-base border-b pb-2">Coverage Analysis</h4>
                          <div className="space-y-3">
-                           <FormField
-                             control={form.control}
+                         <FormField
+                           control={form.control}
                              name="coverageMapping.covered"
-                             render={({ field }) => (
-                               <FormItem>
+                           render={({ field }) => (
+                             <FormItem>
                                  <FormLabel>Covered Items</FormLabel>
                                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded p-3">
                                    {[
@@ -2402,10 +2526,10 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                                      </div>
                                    ))}
                                  </div>
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
                            
                            <FormField
                              control={form.control}
@@ -2443,9 +2567,9 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                                        <label htmlFor={`excluded-${item}`} className="text-sm">
                                          {item}
                                        </label>
-                                     </div>
+                       </div>
                                    ))}
-                                 </div>
+                     </div>
                                  <FormMessage />
                                </FormItem>
                              )}
@@ -2495,6 +2619,66 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                              )}
                            />
                          </div>
+                       </div>
+                       
+                       {/* Language and Currency Preferences */}
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField
+                           control={form.control}
+                           name="preferredLanguage"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Preferred Language</FormLabel>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
+                                 <FormControl>
+                                   <SelectTrigger>
+                                     <SelectValue placeholder="Select language" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {languageOptions.map((language) => (
+                                     <SelectItem key={language.value} value={language.value}>
+                                       {language.label}
+                                     </SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={form.control}
+                           name="preferredCurrency"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Preferred Currency</FormLabel>
+                               <Select
+                                 value={field.value}
+                                 onValueChange={field.onChange}
+                                 disabled={isEstimating}
+                               >
+                                 <FormControl>
+                                   <SelectTrigger>
+                                     <SelectValue placeholder="Select currency" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {currencyOptions.map((currency) => (
+                                     <SelectItem key={currency.value} value={currency.value}>
+                                       {currency.label}
+                                     </SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
                        </div>
                      </div>
                    )}

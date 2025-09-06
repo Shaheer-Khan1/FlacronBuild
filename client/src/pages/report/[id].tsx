@@ -225,10 +225,12 @@ export default function ReportDetailPage() {
                 <InfoRow label="Homeowner Name" value={homeownerName} />
                 <InfoRow label="Homeowner Email" value={homeownerEmail} />
                 <InfoRow label="Budget Style" value={formInput.budgetStyle} />
-                <InfoRow label="Preferred Language" value={formInput.preferredLanguage} />
-                <InfoRow label="Preferred Currency" value={formInput.preferredCurrency} />
               </>
             )}
+            
+            {/* Language and Currency Preferences - Available for all roles */}
+            <InfoRow label="Preferred Language" value={formInput.preferredLanguage} />
+            <InfoRow label="Preferred Currency" value={formInput.preferredCurrency} />
           </div>
         </Section>
 
