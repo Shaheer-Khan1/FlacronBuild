@@ -15,11 +15,11 @@ const normalizeRole = (role: string): UserRole => {
 };
 
 export default function Dashboard() {
-  const [userRole, setUserRole] = useState<UserRole>('homeowner');
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [currentFormField, setCurrentFormField] = useState<string | undefined>();
 
   useEffect(() => {
-    const role = userRoleManager.getUserRoleSync();
+    const role = userRoleManager.getEffectiveRoleSync?.() || userRoleManager.getUserRoleSync();
     if (role) {
       setUserRole(role);
     }
@@ -54,15 +54,12 @@ export default function Dashboard() {
         <div className="max-w-xl w-full mx-auto">
           <Card className="text-center p-8">
             <CardHeader>
-              <CardTitle className="text-2xl text-gray-700">Welcome to FlacronBuild</CardTitle>
+              <CardTitle className="text-2xl text-gray-700">Loading your dashboard...</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 mb-6">
-                Please complete your subscription to access your personalized dashboard.
+                Please wait while we load your role and preferences.
               </p>
-              <Button onClick={() => window.location.href = "/"} className="w-full">
-                Get Started
-              </Button>
             </CardContent>
           </Card>
         </div>
@@ -220,10 +217,12 @@ export default function Dashboard() {
         {/* Chatbot */}
         <Chatbot 
           onRoleSelect={async (role) => {
-            // Update user role in the system
-            await userRoleManager.setUserRole(role);
-            // Refresh the dashboard
-            window.location.reload();
+            try {
+              await userRoleManager.setUserRole(role);
+              window.location.reload();
+            } catch (e: any) {
+              window.alert(e.message || 'Unable to change role');
+            }
           }}
           onNavigateToPricing={() => {
             // Open login dialog with pricing focus

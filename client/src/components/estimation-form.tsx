@@ -7,6 +7,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
@@ -457,7 +460,8 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [jurisdictionLocation, setJurisdictionLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string>("homeowner");
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [baseUserRole, setBaseUserRole] = useState<string | null>(null);
 
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -466,11 +470,11 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
 
   // Listen for user role changes like the dashboard does
   useEffect(() => {
-    const role = userRoleManager.getUserRoleSync();
-    console.log('🔍 EstimationForm: Initial role from userRoleManager:', role);
-    if (role) {
-      setCurrentUserRole(role);
-    }
+    const base = userRoleManager.getUserRoleSync();
+    const effective = (userRoleManager as any).getEffectiveRoleSync?.() || base;
+    console.log('🔍 EstimationForm: Base role:', base, 'Effective role:', effective);
+    if (base) setBaseUserRole(base);
+    if (effective) setCurrentUserRole(effective);
 
     // Listen for role changes
     const unsubscribe = userRoleManager.onRoleChange((newRole) => {
@@ -483,8 +487,8 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
     return unsubscribe;
   }, []);
 
-  // Use the current user role from state, fallback to prop, then default
-  const effectiveUserRole = currentUserRole || userRole || "homeowner";
+  // Use the current user role from state, fallback to prop; avoid defaulting to homeowner to prevent UI flash
+  const effectiveUserRole = (currentUserRole || userRole) as "inspector" | "insurance-adjuster" | "contractor" | "homeowner" | undefined;
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectSchema),
@@ -1190,17 +1194,42 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
 
                 <FormField
                   control={form.control}
-                    name="userRole"
+                  name="userRole"
                   render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Your Role</FormLabel>
+                      <FormLabel>Your Role</FormLabel>
+                      {baseUserRole === 'homeowner' ? (
                         <div className="p-3 border rounded bg-neutral-50 text-base font-medium">
                           {userRoles.find(r => r.value === userRole)?.label || userRole}
                         </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      ) : (
+                        <Select
+                          value={field.value}
+                          onValueChange={(val) => {
+                            field.onChange(val);
+                            try {
+                              (userRoleManager as any).setSessionRole?.(val as any);
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {userRoles.map((r) => (
+                              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                   <FormField
                     control={form.control}
@@ -1658,15 +1687,38 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
                          <FormField
                            control={form.control}
                            name="inspectionDate"
-                           render={({ field }) => (
-                             <FormItem>
-                               <FormLabel>Date of Inspection</FormLabel>
-                               <FormControl>
-                                 <Input type="date" {...field} onFocus={() => handleFieldFocus('inspectionDate')} />
-                               </FormControl>
-                               <FormMessage />
-                             </FormItem>
-                           )}
+                           render={({ field }) => {
+                             const dateValue = field.value ? new Date(field.value) : undefined;
+                             return (
+                               <FormItem>
+                                 <FormLabel>Date of Inspection</FormLabel>
+                                 <Popover>
+                                   <PopoverTrigger asChild>
+                                     <FormControl>
+                                       <Button
+                                         variant="outline"
+                                         className="w-full justify-start text-left font-normal"
+                                         onFocus={() => handleFieldFocus('inspectionDate')}
+                                       >
+                                         {dateValue ? format(dateValue, 'dd/MM/yyyy') : 'Pick a date'}
+                                       </Button>
+                                     </FormControl>
+                                   </PopoverTrigger>
+                                   <PopoverContent className="p-0" align="start">
+                                     <Calendar
+                                       mode="single"
+                                       selected={dateValue}
+                                       onSelect={(d) => {
+                                         field.onChange(d ? format(d, 'yyyy-MM-dd') : '');
+                                       }}
+                                       initialFocus
+                                     />
+                                   </PopoverContent>
+                                 </Popover>
+                                 <FormMessage />
+                               </FormItem>
+                             );
+                           }}
                          />
                          <FormField
                            control={form.control}

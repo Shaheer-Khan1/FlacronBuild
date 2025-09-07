@@ -4,6 +4,9 @@ import { db, auth } from "@/lib/firebase";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import { useLocation } from "wouter";
 import LoginDialog from "@/components/login-dialog";
 import { Home, Building, Wrench, TrafficCone, MapPin } from "lucide-react";
@@ -90,12 +93,24 @@ export default function ComparePage() {
         <div className="w-full max-w-5xl mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="flex gap-2 items-center w-full md:w-auto">
             <label className="text-sm font-medium text-orange-600">Date:</label>
-            <input
-              type="date"
-              className="border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-colors"
-              value={dateFilter}
-              onChange={e => setDateFilter(e.target.value)}
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-2 border-orange-200 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-colors"
+                >
+                  {dateFilter ? format(new Date(dateFilter), 'dd MMM yyyy') : 'Pick a date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateFilter ? new Date(dateFilter) : undefined}
+                  onSelect={(d) => setDateFilter(d ? format(d, 'yyyy-MM-dd') : '')}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="flex gap-2 items-center w-full md:w-auto">
             <label className="text-sm font-medium text-orange-600">Project Name:</label>
@@ -158,7 +173,7 @@ export default function ComparePage() {
                   </div>
                   <div className="flex flex-col gap-1 items-center text-sm text-neutral-700 py-4 px-4">
                     <span className="text-xs text-neutral-500">
-                      {report.timestamp ? new Date(report.timestamp).toLocaleDateString() : 'Date not available'}
+                      {report.timestamp ? format(new Date(report.timestamp), 'dd MMM yyyy') : 'Date not available'}
                     </span>
                     {project.location && (
                       <span className="flex items-center gap-1 text-blue-500 text-xs">

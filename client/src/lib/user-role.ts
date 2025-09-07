@@ -16,6 +16,7 @@ export class UserRoleManager {
   private currentRole: UserRole | null = null;
   private listeners: ((role: UserRole | null) => void)[] = [];
   private unsubscribeSnapshot: (() => void) | null = null;
+  private sessionOverrideRole: UserRole | null = null;
 
   static getInstance(): UserRoleManager {
     if (!UserRoleManager.instance) {
@@ -29,6 +30,12 @@ export class UserRoleManager {
     const user = auth.currentUser;
     if (!user) throw new Error("No authenticated user");
 
+    // Enforce: Homeowner accounts cannot change to other roles
+    const existingRole = this.currentRole || (await this.getUserRole());
+    if (existingRole === 'homeowner' && role !== 'homeowner') {
+      throw new Error('Homeowner accounts cannot change roles');
+    }
+
     const roleData: UserRoleData = {
       role,
       lastUpdated: new Date().toISOString(),
@@ -39,6 +46,22 @@ export class UserRoleManager {
     await setDoc(doc(db, "userRoles", user.uid), roleData);
     this.currentRole = role;
     this.notifyListeners(role);
+  }
+
+  // Set a session-only role override (does not persist). Resets on reload.
+  setSessionRole(role: UserRole | null): void {
+    // Homeowners cannot override
+    const baseRole = this.currentRole;
+    if (baseRole === 'homeowner' && role && role !== 'homeowner') {
+      throw new Error('Homeowner accounts cannot change roles');
+    }
+    this.sessionOverrideRole = role;
+    this.notifyListeners(this.getEffectiveRoleSync());
+  }
+
+  // Get role considering session override
+  getEffectiveRoleSync(): UserRole | null {
+    return this.sessionOverrideRole || this.currentRole;
   }
 
   // Get current role (from cache or Firebase)

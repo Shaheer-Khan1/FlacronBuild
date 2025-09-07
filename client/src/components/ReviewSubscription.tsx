@@ -81,7 +81,7 @@ export default function ReviewSubscriptionStep({
         throw new Error('No user authenticated');
       }
 
-      // Save user role
+      // Save user role (manager will enforce homeowner restriction)
       await userRoleManager.setUserRole(selectedPlan as any);
 
       const response = await fetch('/api/create-checkout-session', {

@@ -3,9 +3,9 @@ import { useLocation } from "wouter";
 import Header from "@/components/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { auth, db } from "@/lib/firebase";
+import { userRoleManager } from "@/lib/user-role";
 import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { deleteUser, User as FirebaseUser, reauthenticateWithCredential, EmailAuthProvider, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { User, Mail, FileText, Trash2, AlertTriangle } from "lucide-react";
@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label";
 
 export default function UserSettingsPage() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [estimateCount, setEstimateCount] = useState<number>(0);
+  const [permanentRole, setPermanentRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -38,7 +38,12 @@ export default function UserSettingsPage() {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        await fetchEstimateCount(currentUser.uid);
+        try {
+          const role = await userRoleManager.getUserRole();
+          setPermanentRole(role);
+        } catch (e) {
+          console.error("Failed to load user role", e);
+        }
       } else {
         navigate("/");
       }
@@ -47,42 +52,6 @@ export default function UserSettingsPage() {
     return () => unsubscribe();
   }, [navigate]);
 
-  const fetchEstimateCount = async (userId: string) => {
-    try {
-      let totalCount = 0;
-      
-      // Count legacy estimates (by userId)
-      try {
-        const estimatesQuery = query(
-          collection(db, "estimates"),
-          where("userId", "==", userId)
-        );
-        const estimatesSnapshot = await getDocs(estimatesQuery);
-        totalCount += estimatesSnapshot.size;
-      } catch (error) {
-        console.log("No legacy estimates found:", error);
-      }
-      
-      // Count current reports (by userEmail)
-      if (user?.email) {
-        try {
-          const reportsQuery = query(
-            collection(db, "reports"),
-            where("userEmail", "==", user.email)
-          );
-          const reportsSnapshot = await getDocs(reportsQuery);
-          totalCount += reportsSnapshot.size;
-        } catch (error) {
-          console.log("No reports found:", error);
-        }
-      }
-      
-      setEstimateCount(totalCount);
-    } catch (error) {
-      console.error("Error fetching estimate count:", error);
-      setEstimateCount(0);
-    }
-  };
 
   const isGoogleUser = user?.providerData?.some(provider => provider.providerId === 'google.com');
 
@@ -251,14 +220,13 @@ export default function UserSettingsPage() {
                     <div className="flex items-center gap-3">
                       <FileText className="h-5 w-5 text-neutral-500" />
                       <div>
-                        <div className="font-medium text-neutral-800">Estimates Created</div>
-                        <div className="text-sm text-neutral-600">Total estimates generated</div>
+                        <div className="font-medium text-neutral-800">Permanent Role</div>
+                        <div className="text-sm text-neutral-600">{permanentRole ? userRoleManager.getRoleDisplayName(permanentRole as any) : '—'}</div>
                       </div>
                     </div>
-                    <Badge variant="secondary" className="bg-primary/10 text-primary font-semibold">
-                      {estimateCount}
-                    </Badge>
                   </div>
+
+                  {/* Removed Estimates Created block */}
                 </div>
               </div>
               
@@ -296,7 +264,7 @@ export default function UserSettingsPage() {
                             <AlertDialogTitle>Confirm Account Deletion</AlertDialogTitle>
                             <AlertDialogDescription>
                               This action cannot be undone. This will permanently delete your account
-                              and remove all your data including {estimateCount} estimate{estimateCount !== 1 ? 's' : ''} from our servers.
+                              and remove all your data from our servers.
                               {!isGoogleUser && (
                                 <>
                                   <br /><br />
