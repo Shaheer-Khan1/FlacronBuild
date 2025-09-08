@@ -21,6 +21,7 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import LoginDialog from "./login-dialog";
 import { GoogleMap, Marker, useLoadScript } from '@react-google-maps/api';
 import { userRoleManager, type UserRole } from "@/lib/user-role";
+import { useLocation } from "wouter";
 
 const projectSchema = z.object({
   // Shared fields (All Roles)
@@ -462,6 +463,7 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
   const [jurisdictionLocation, setJurisdictionLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [baseUserRole, setBaseUserRole] = useState<string | null>(null);
+  const [, navigate] = useLocation();
 
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -797,6 +799,8 @@ export default function EstimationForm({ userRole, onEstimateGenerated, onReport
           title: "Estimate Generated",
           description: "Your estimate and PDF report are ready.",
         });
+        // Redirect user to My Estimates after download kicks off
+        setTimeout(() => navigate("/my-estimates"), 600);
       } catch (error) {
         console.error('PDF generation error:', error);
         toast({
