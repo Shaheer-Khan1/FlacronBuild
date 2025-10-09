@@ -21,10 +21,15 @@ export default function SuccessPage() {
       fetch(`/api/stripe-session/${sessionIdParam}`)
         .then(response => response.json())
         .then(async data => {
-          if (data.role) {
-            await userRoleManager.setUserRole(data.role);
-            navigate('/');
-          }
+        if (data.role) {
+  await userRoleManager.setUserRole(
+    data.role,
+    data.subscriptionId,        // ✅ use the new subscription ID
+    data.billingPeriod
+  );
+  navigate('/');
+}
+
         })
         .catch(error => {
           console.error('Error fetching session details:', error);

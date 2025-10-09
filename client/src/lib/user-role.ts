@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { doc, setDoc, getDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 
 export type UserRole = "homeowner" | "contractor" | "inspector" | "insurance-adjuster";
@@ -14,6 +14,7 @@ interface UserRoleData {
 export class UserRoleManager {
   private static instance: UserRoleManager;
   private currentRole: UserRole | null = null;
+  private currentSubscriptionId: string | null = null;
   private listeners: ((role: UserRole | null) => void)[] = [];
   private unsubscribeSnapshot: (() => void) | null = null;
   private sessionOverrideRole: UserRole | null = null;
@@ -25,49 +26,78 @@ export class UserRoleManager {
     return UserRoleManager.instance;
   }
 
-  // Set user role and persist to Firebase
-  async setUserRole(role: UserRole, subscriptionId?: string, billingPeriod?: "monthly" | "yearly"): Promise<void> {
+  // ✅ Set user role and optional subscription
+  async setUserRole(
+    role: UserRole,
+    subscriptionId?: string,
+    billingPeriod?: "monthly" | "yearly"
+  ): Promise<void> {
     const user = auth.currentUser;
     if (!user) throw new Error("No authenticated user");
 
-    // Enforce: Homeowner accounts cannot change to other roles
     const existingRole = this.currentRole || (await this.getUserRole());
-    if (existingRole === 'homeowner' && role !== 'homeowner') {
-      throw new Error('Homeowner accounts cannot change roles');
+    if (existingRole === "homeowner" && role !== "homeowner") {
+      throw new Error("Homeowner accounts cannot change roles");
     }
 
     const roleData: UserRoleData = {
       role,
       lastUpdated: new Date().toISOString(),
       ...(subscriptionId && { subscriptionId }),
-      ...(billingPeriod && { billingPeriod })
+      ...(billingPeriod && { billingPeriod }),
     };
 
-    await setDoc(doc(db, "userRoles", user.uid), roleData);
+    await setDoc(doc(db, "userRoles", user.uid), roleData, { merge: true });
+
     this.currentRole = role;
+    this.currentSubscriptionId = subscriptionId || null;
     this.notifyListeners(role);
   }
 
-  // Set a session-only role override (does not persist). Resets on reload.
-  setSessionRole(role: UserRole | null): void {
-    // Homeowners cannot override
-    const baseRole = this.currentRole;
-    if (baseRole === 'homeowner' && role && role !== 'homeowner') {
-      throw new Error('Homeowner accounts cannot change roles');
+  // ✅ Check if user is subscribed
+  async isSubscribed(): Promise<boolean> {
+    const user = auth.currentUser;
+    if (!user) return false;
+
+    try {
+      const roleDoc = await getDoc(doc(db, "userRoles", user.uid));
+      if (roleDoc.exists()) {
+        const data = roleDoc.data() as UserRoleData;
+        return !!data.subscriptionId; // true if present
+      }
+    } catch (error) {
+      console.error("Error checking subscription:", error);
     }
-    this.sessionOverrideRole = role;
-    this.notifyListeners(this.getEffectiveRoleSync());
+
+    return false;
   }
 
-  // Get role considering session override
+  // 🔄 Sync role from Firestore in real time
+  private setupRoleListener(userId: string): void {
+    this.unsubscribeSnapshot?.();
+
+    const roleDocRef = doc(db, "userRoles", userId);
+    this.unsubscribeSnapshot = onSnapshot(roleDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as UserRoleData;
+        this.currentRole = data.role;
+        this.currentSubscriptionId = data.subscriptionId || null;
+        this.notifyListeners(data.role);
+      }
+    });
+  }
+
+  // ⚙️ Helpers
   getEffectiveRoleSync(): UserRole | null {
     return this.sessionOverrideRole || this.currentRole;
   }
 
-  // Get current role (from cache or Firebase)
+  getUserRoleSync(): UserRole | null {
+    return this.currentRole;
+  }
+
   async getUserRole(): Promise<UserRole | null> {
     if (this.currentRole) return this.currentRole;
-
     const user = auth.currentUser;
     if (!user) return null;
 
@@ -76,6 +106,7 @@ export class UserRoleManager {
       if (roleDoc.exists()) {
         const data = roleDoc.data() as UserRoleData;
         this.currentRole = data.role;
+        this.currentSubscriptionId = data.subscriptionId || null;
         return data.role;
       }
     } catch (error) {
@@ -84,12 +115,6 @@ export class UserRoleManager {
     return null;
   }
 
-  // Get role synchronously (cached only)
-  getUserRoleSync(): UserRole | null {
-    return this.currentRole;
-  }
-
-  // Clear role
   async clearUserRole(): Promise<void> {
     const user = auth.currentUser;
     if (user) {
@@ -100,11 +125,20 @@ export class UserRoleManager {
       }
     }
     this.currentRole = null;
+    this.currentSubscriptionId = null;
     this.notifyListeners(null);
     this.unsubscribeSnapshot?.();
   }
 
-  // Subscribe to role changes
+  setSessionRole(role: UserRole | null): void {
+    const baseRole = this.currentRole;
+    if (baseRole === "homeowner" && role && role !== "homeowner") {
+      throw new Error("Homeowner accounts cannot change roles");
+    }
+    this.sessionOverrideRole = role;
+    this.notifyListeners(this.getEffectiveRoleSync());
+  }
+
   onRoleChange(callback: (role: UserRole | null) => void): () => void {
     this.listeners.push(callback);
     return () => {
@@ -114,10 +148,9 @@ export class UserRoleManager {
   }
 
   private notifyListeners(role: UserRole | null): void {
-    this.listeners.forEach(callback => callback(role));
+    this.listeners.forEach((callback) => callback(role));
   }
 
-  // Initialize with auth state monitoring
   initialize(): void {
     onAuthStateChanged(auth, (user) => {
       if (!user) {
@@ -128,27 +161,13 @@ export class UserRoleManager {
     });
   }
 
-  // Real-time role sync from Firebase
-  private setupRoleListener(userId: string): void {
-    this.unsubscribeSnapshot?.();
-    
-    const roleDocRef = doc(db, "userRoles", userId);
-    this.unsubscribeSnapshot = onSnapshot(roleDocRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data() as UserRoleData;
-        this.currentRole = data.role;
-        this.notifyListeners(data.role);
-      }
-    });
-  }
-
-  // Helper methods
+  // 👇 Role names, descriptions, and features
   getRoleDisplayName(role: UserRole): string {
     const names = {
       homeowner: "🏠 Homeowner",
-      contractor: "🧱 Contractor", 
+      contractor: "🧱 Contractor",
       inspector: "🧑‍💼 Inspector",
-      "insurance-adjuster": "💼 Insurance Adjuster"
+      "insurance-adjuster": "💼 Insurance Adjuster",
     };
     return names[role];
   }
@@ -158,7 +177,7 @@ export class UserRoleManager {
       homeowner: "Basic estimator with simplified interface and budget-friendly options",
       contractor: "Professional estimator with detailed breakdowns and bid-ready reports",
       inspector: "Comprehensive inspection tools with damage assessment and certification",
-      "insurance-adjuster": "Insurance-focused tools with coverage analysis and claim management"
+      "insurance-adjuster": "Insurance-focused tools with coverage analysis and claim management",
     };
     return descriptions[role];
   }
@@ -167,27 +186,27 @@ export class UserRoleManager {
     const features = {
       homeowner: [
         "Basic Estimator (fewer fields)",
-        "No cost breakdowns by unit", 
+        "No cost breakdowns by unit",
         "Plain-language summary",
-        "Budget suggestions only"
+        "Budget suggestions only",
       ],
       contractor: [
         "Full estimator with labor, material, permit, equipment breakdown",
         "Editable line items",
-        "Downloadable bid-ready report"
+        "Downloadable bid-ready report",
       ],
       inspector: [
         "Slope-by-slope damage input",
-        "Component condition checklist", 
+        "Component condition checklist",
         "Certification option",
-        "Annotated photos included in report"
+        "Annotated photos included in report",
       ],
       "insurance-adjuster": [
         "Damage cause classification",
         "Coverage table (Covered / Not Covered)",
         "Claim number and metadata fields",
-        "Legal certification block"
-      ]
+        "Legal certification block",
+      ],
     };
     return features[role];
   }
