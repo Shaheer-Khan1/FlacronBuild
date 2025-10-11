@@ -110,7 +110,7 @@ export default function IntroDesign({ onGetStarted }: IntroDesignProps) {
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Why Choose{" "}
             <span className="text-orange-500 bg-gradient-to-r from-orange-500 to-amber-600 bg-clip-text text-transparent">
-              FLACRON BUILD
+             <span className="text-black"> FLACRON</span>BUILD
             </span>
             ?
           </h2>
