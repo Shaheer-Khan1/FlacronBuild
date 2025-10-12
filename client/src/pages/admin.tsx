@@ -92,6 +92,7 @@ export default function AdminPage() {
     }
   };
 
+
   const loadAdminData = async () => {
     setLoading(true);
     try {

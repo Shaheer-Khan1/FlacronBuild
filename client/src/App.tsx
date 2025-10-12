@@ -17,23 +17,27 @@ import SuccessPage from "@/pages/success";
 import CancelPage from "@/pages/cancel";
 import SupportPage from "@/pages/support";
 import Chatbot from "./components/chatbot";
-import { userRoleManager, type UserRole } from "./lib/user-role";
+import { userRoleManager } from "./lib/user-role";
 import { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import Header from "@/components/header";
 import LoginDialog from "@/components/login-dialog";
+import IntroDesign from "./components/intro-desgin";
 
-// CookieConsent component
+// ✅ Cookie Consent
 function CookieConsent() {
   useEffect(() => {
-    if (!localStorage.getItem('cookieConsent')) {
-      window.alert('This site uses cookies to enhance your experience. By continuing, you agree to our use of cookies.');
-      localStorage.setItem('cookieConsent', 'true');
+    if (!localStorage.getItem("cookieConsent")) {
+      window.alert(
+        "This site uses cookies to enhance your experience. By continuing, you agree to our use of cookies."
+      );
+      localStorage.setItem("cookieConsent", "true");
     }
   }, []);
   return null;
 }
 
+// ✅ Router
 function Router() {
   return (
     <Switch>
@@ -54,53 +58,77 @@ function Router() {
   );
 }
 
+// ✅ Responsive + Clean Footer
 function Footer() {
   return (
-    <footer style={{
-      width: '100%',
-      background: '#f3f4f6',
-      color: '#374151',
-      textAlign: 'center',
-      padding: '1rem 0',
-      borderTop: '1px solid #e5e7eb',
-    }}>
-      <div>
-        &copy; {new Date().getFullYear()} FlacronBuild &mdash; AI-powered construction cost estimation
+    <footer className="relative w-full bg-gradient-to-b from-[#171D25] via-gray-950 to-black text-gray-400 border-t border-gray-800 py-14 overflow-hidden">
+      {/* Subtle animated orb for premium touch */}
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-orange-500/10 via-transparent to-transparent blur-3xl pointer-events-none"></div>
+
+      <div className="relative z-10 max-w-5xl mx-auto px-6 text-center space-y-6">
+        {/* Brand Name */}
+        <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+          <span className="text-white">FLACRON</span>{" "}
+          <span className="text-orange-500">BUILD</span>
+        </h2>
+
+        {/* Tagline */}
+        <p className="text-gray-400 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
+          AI-powered construction cost estimation — built for precision, trust, and performance.
+        </p>
+
+        {/* Partner Mentions */}
+        <div className="flex flex-wrap justify-center items-center gap-6 pt-4 text-xs md:text-sm text-gray-500">
+          <span>
+            <span className="text-white font-semibold">Powered by</span> IBM
+          </span>
+          <span className="text-gray-700">•</span>
+          <span>
+            <span className="text-white font-semibold">Distributed by</span> Microsoft
+          </span>
+          <span className="text-gray-700">•</span>
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent w-2/3 mx-auto my-6"></div>
+
+        {/* Copyright */}
+        <p className="text-xs md:text-sm text-gray-500">
+          © {new Date().getFullYear()}{" "}
+          <span className="text-white font-semibold">FLACRON BUILD</span>. All rights reserved.
+        </p>
       </div>
+
+      {/* Custom Animations */}
+      <style>
+        {`
+          @keyframes pulse-slow {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+          }
+          .animate-pulse-slow {
+            animation: pulse-slow 8s ease-in-out infinite;
+          }
+        `}
+      </style>
     </footer>
   );
 }
 
+// ✅ Landing Page
 function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 flex flex-col items-center justify-center px-4">
-        <div className="max-w-xl w-full text-center py-16">
-          <h1 className="text-4xl font-extrabold mb-4">
-            FLACRON <span className="text-orange-500">BUILD</span>
-          </h1>
-          <p className="text-lg text-gray-600 mb-4">
-            AI-powered roofing cost estimation with professional reports for homeowners, contractors, inspectors, and insurance adjusters. Get accurate, data-driven estimates for roof repairs, replacements, and maintenance.
-          </p>
-          <p className="text-sm text-gray-500 mb-8">
-            Real roofing cost estimates based on current market data and material prices. Actual costs can vary based on location, material availability, and contractor rates. Most accurate for properties in the United States.
-          </p>
-          <button
-            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-8 rounded-lg text-lg shadow transition"
-            onClick={onGetStarted}
-          >
-            Get Started
-          </button>
-        </div>
-      </main>
+      <IntroDesign onGetStarted={onGetStarted} />
       <Footer />
       <Chatbot />
     </div>
   );
 }
 
-function App() {
+// ✅ Main App
+export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -110,21 +138,22 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       setAuthChecked(true);
-      
+
       if (firebaseUser) {
-        // Check if coming from payment success
-        const isSuccessPage = window.location.pathname === '/success' || 
-                             new URLSearchParams(window.location.search).get('session_id');
-        
+        const isSuccessPage =
+          window.location.pathname === "/success" ||
+          new URLSearchParams(window.location.search).get("session_id");
+
         if (isSuccessPage) {
           setShowLogin(false);
           return;
         }
 
-        // Check if user has a role
         const role = await userRoleManager.getUserRole();
-        const isNewUser = firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime;
-        
+        const isNewUser =
+          firebaseUser.metadata.creationTime ===
+          firebaseUser.metadata.lastSignInTime;
+
         if (!role && isNewUser) {
           setShowLogin(true);
         } else {
@@ -133,7 +162,6 @@ function App() {
       }
     });
 
-    // Close login dialog when role is set
     const unsubscribeRole = userRoleManager.onRoleChange((role) => {
       if (role) {
         setShowLogin(false);
@@ -163,16 +191,15 @@ function App() {
     return (
       <>
         <LandingPage onGetStarted={() => setShowLogin(true)} />
-        <LoginDialog 
-          open={showLogin} 
+        <LoginDialog
+          open={showLogin}
           onOpenChange={(open) => {
             if (!open) {
-              // If user closes dialog without completing setup, sign them out
               const auth = getAuth();
               auth.signOut();
             }
             setShowLogin(open);
-          }} 
+          }}
         />
       </>
     );
@@ -192,5 +219,3 @@ function App() {
     </QueryClientProvider>
   );
 }
-
-export default App;

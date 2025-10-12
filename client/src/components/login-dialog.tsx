@@ -135,6 +135,8 @@ export default function LoginDialog({ open, onOpenChange, message, onStepChange 
     jurisdictionLocation: { lat: 0, lng: 0, address: '' },
   });
 
+  
+
   useEffect(() => {
     if (onStepChange) {
       onStepChange(signupStep);

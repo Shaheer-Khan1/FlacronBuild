@@ -400,13 +400,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract role from session metadata
       const role = session.metadata?.role;
       
-      res.json({ 
-        sessionId: session.id,
-        role: role,
-        billingPeriod: session.metadata?.billingPeriod,
-        customerEmail: session.customer_email,
-        customerName: session.metadata?.customerName
-      });
+      res.json({
+  sessionId: session.id,
+  role: role,
+  subscriptionId: session.subscription || null,  // ✅ add this line
+  billingPeriod: session.metadata?.billingPeriod,
+  customerEmail: session.customer_email,
+  customerName: session.metadata?.customerName,
+});
+
     } catch (error) {
       console.error("Error retrieving session:", error);
       res.status(500).json({ 
