@@ -1426,76 +1426,151 @@ function addContractorReport(doc: jsPDF, project: any, estimate: any) {
     yPos += 10;
   }
 
-  // Cost Estimates Section
-  if (costEstimates.materials.total > 0 || costEstimates.labor.total > 0) {
-    if (yPos > doc.internal.pageSize.height - 120) {
-            doc.addPage();
-      yPos = 20;
-    }
+  // ✅ SAFELY CALCULATE ALL TOTALS BEFORE DRAWING PDF
+costEstimates.materials.total = costEstimates.materials.breakdown
+  ?.reduce((sum, item) => sum + Number(item.amount || 0), 0) || 0;
 
-    doc.setFillColor(255, 102, 0);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.rect(margin, yPos, pageWidth - 2*margin, 8, 'F');
-    doc.text(getLocalizedText('cost_estimates', preferredLanguage), margin + 5, yPos + 6);
-    yPos += 15;
+costEstimates.labor.total = Number(costEstimates.labor.ratePerHour || 0) *
+                            Number(costEstimates.labor.totalHours || 0);
 
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(10);
+costEstimates.equipment.total = costEstimates.equipment.items
+  ?.reduce((sum, item) => sum + Number(item.cost || 0), 0) || 0;
 
-    // Materials Cost
-    if (costEstimates.materials.total > 0) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(getLocalizedText('materials_cost', preferredLanguage), margin, yPos);
-      yPos += 7;
-      doc.setFont('helvetica', 'normal');
-      costEstimates.materials.breakdown.forEach((item: CostBreakdownItem) => {
-        doc.text(`${item.category}: ${formatCurrency(item.amount, preferredCurrency)}`, margin + 10, yPos);
-        yPos += 5;
-      });
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${getLocalizedText('total_materials_cost', preferredLanguage)} ${formatCurrency(costEstimates.materials.total, preferredCurrency)}`, margin + 10, yPos);
-      yPos += 10;
-    }
+// ✅ Compute grand total safely (rounded)
+const grandTotal = +(
+  Number(costEstimates.materials.total) +
+  Number(costEstimates.labor.total) +
+  Number(costEstimates.equipment.total)
+).toFixed(2);
 
-    // Labor Cost
-    if (costEstimates.labor.total > 0) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(getLocalizedText('labor_cost', preferredLanguage), margin, yPos);
-      yPos += 7;
-          doc.setFont('helvetica', 'normal');
-      doc.text(`${getLocalizedText('rate_per_hour', preferredLanguage)} ${formatCurrency(costEstimates.labor.ratePerHour, preferredCurrency)}`, margin + 10, yPos);
-      yPos += 5;
-      doc.text(`${getLocalizedText('total_hours', preferredLanguage)} ${costEstimates.labor.totalHours}`, margin + 10, yPos);
-      yPos += 5;
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${getLocalizedText('total_labor_cost', preferredLanguage)} ${formatCurrency(costEstimates.labor.total, preferredCurrency)}`, margin + 10, yPos);
-      yPos += 10;
-    }
-
-    // Equipment Cost
-    if (costEstimates.equipment.total > 0) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(getLocalizedText('equipment_cost', preferredLanguage), margin, yPos);
-      yPos += 7;
-      doc.setFont('helvetica', 'normal');
-      costEstimates.equipment.items.forEach((item: EquipmentItem) => {
-        doc.text(`${item.item}: ${formatCurrency(item.cost, preferredCurrency)}`, margin + 10, yPos);
-        yPos += 5;
-      });
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${getLocalizedText('total_equipment_cost', preferredLanguage)} ${formatCurrency(costEstimates.equipment.total, preferredCurrency)}`, margin + 10, yPos);
-      yPos += 10;
-    }
-
-    // Grand Total
-    const grandTotal = costEstimates.materials.total + costEstimates.labor.total + costEstimates.equipment.total;
-    yPos += 5;
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-              doc.setTextColor(255, 102, 0);
-    doc.text(`${getLocalizedText('project_total', preferredLanguage)} ${formatCurrency(grandTotal, preferredCurrency)}`, margin, yPos);
+// ---------------- COST ESTIMATES SECTION ----------------
+if (
+  costEstimates.materials.total > 0 ||
+  costEstimates.labor.total > 0 ||
+  costEstimates.equipment.total > 0
+) {
+  if (yPos > doc.internal.pageSize.height - 120) {
+    doc.addPage();
+    yPos = 20;
   }
+
+  doc.setFillColor(255, 102, 0);
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.rect(margin, yPos, pageWidth - 2 * margin, 8, 'F');
+  doc.text(getLocalizedText('cost_estimates', preferredLanguage), margin + 5, yPos + 6);
+  yPos += 15;
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+
+  // ---------------- MATERIALS COST ----------------
+  if (costEstimates.materials.total > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(getLocalizedText('materials_cost', preferredLanguage), margin, yPos);
+    yPos += 7;
+
+    doc.setFont('helvetica', 'normal');
+    costEstimates.materials.breakdown.forEach((item: CostBreakdownItem) => {
+      doc.text(
+        `${item.category}: ${formatCurrency(item.amount, preferredCurrency)}`,
+        margin + 10,
+        yPos
+      );
+      yPos += 5;
+    });
+
+    doc.setFont('helvetica', 'bold');
+    doc.text(
+      `${getLocalizedText('total_materials_cost', preferredLanguage)} ${formatCurrency(
+        costEstimates.materials.total,
+        preferredCurrency
+      )}`,
+      margin + 10,
+      yPos
+    );
+    yPos += 10;
+  }
+
+  // ---------------- LABOR COST ----------------
+  if (costEstimates.labor.total > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(getLocalizedText('labor_cost', preferredLanguage), margin, yPos);
+    yPos += 7;
+
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `${getLocalizedText('rate_per_hour', preferredLanguage)} ${formatCurrency(
+        costEstimates.labor.ratePerHour,
+        preferredCurrency
+      )}`,
+      margin + 10,
+      yPos
+    );
+    yPos += 5;
+
+    doc.text(
+      `${getLocalizedText('total_hours', preferredLanguage)} ${costEstimates.labor.totalHours}`,
+      margin + 10,
+      yPos
+    );
+    yPos += 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text(
+      `${getLocalizedText('total_labor_cost', preferredLanguage)} ${formatCurrency(
+        costEstimates.labor.total,
+        preferredCurrency
+      )}`,
+      margin + 10,
+      yPos
+    );
+    yPos += 10;
+  }
+
+  // ---------------- EQUIPMENT COST ----------------
+  if (costEstimates.equipment.total > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(getLocalizedText('equipment_cost', preferredLanguage), margin, yPos);
+    yPos += 7;
+
+    doc.setFont('helvetica', 'normal');
+    costEstimates.equipment.items.forEach((item: EquipmentItem) => {
+      doc.text(
+        `${item.item}: ${formatCurrency(item.cost, preferredCurrency)}`,
+        margin + 10,
+        yPos
+      );
+      yPos += 5;
+    });
+
+    doc.setFont('helvetica', 'bold');
+    doc.text(
+      `${getLocalizedText('total_equipment_cost', preferredLanguage)} ${formatCurrency(
+        costEstimates.equipment.total,
+        preferredCurrency
+      )}`,
+      margin + 10,
+      yPos
+    );
+    yPos += 10;
+  }
+
+  // ---------------- GRAND TOTAL ----------------
+  yPos += 5;
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 102, 0);
+  doc.text(
+    `${getLocalizedText('project_total', preferredLanguage)} ${formatCurrency(
+      grandTotal,
+      preferredCurrency
+    )}`,
+    margin,
+    yPos
+  );
+}
+
 }
 
 function addContractorImagePages(doc: jsPDF, uploadedFiles: any[], report?: any, preferredLanguage: string = 'english') {
